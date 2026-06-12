@@ -726,7 +726,10 @@ html { height: 100%; overflow: hidden; }
 
     <!-- ── LANÇAR ── -->
     <div id="tab-lancar" class="tab-pane">
-      <div class="section-title">Bora lançar?! 🚀</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <div class="section-title">Bora lançar?! 🚀</div>
+        <button onclick="abrirModalCategorias()" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px" title="Gerenciar categorias">⚙️</button>
+      </div>
       <div class="section-sub">Registre uma movimentação agora</div>
 
       <!-- Tipo -->
@@ -765,64 +768,38 @@ html { height: 100%; overflow: hidden; }
                class="valor-big-input" id="f-valor" placeholder="0,00">
       </div>
 
+      <!-- Parcelas (só para crédito) -->
+      <div class="form-group" id="f-parcelas-wrap" style="display:none">
+        <label class="form-label">PARCELAS</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <select class="form-control" id="f-parcelas" style="width:120px;flex-shrink:0">
+            <option value="1">1x (à vista)</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+            <option value="5">5x</option>
+            <option value="6">6x</option>
+            <option value="7">7x</option>
+            <option value="8">8x</option>
+            <option value="9">9x</option>
+            <option value="10">10x</option>
+            <option value="11">11x</option>
+            <option value="12">12x</option>
+          </select>
+          <div style="font-size:13px;color:var(--muted)" id="f-parcela-preview"></div>
+        </div>
+      </div>
+
       <!-- Categoria -->
       <div class="form-group" id="f-categoria-wrap">
         <label class="form-label">CATEGORIA</label>
-        <select class="form-control" id="f-categoria">
-          <optgroup label="🛒 Variáveis">
-            <option>Supermercado</option>
-            <option>Padaria/Açougue</option>
-            <option>Feira</option>
-            <option>Farmácia</option>
-            <option>Combustível</option>
-            <option>Transporte/Uber</option>
-            <option>Manutenção Veículo</option>
-            <option>Restaurante/Lanche</option>
-            <option>Delivery</option>
-            <option>Lazer/Entretenimento</option>
-            <option>Vestuário</option>
-            <option>Beleza/Higiene</option>
-            <option>Saúde/Médico</option>
-            <option>Academia</option>
-            <option>Presentes</option>
-            <option>Viagem</option>
-            <option>Educação/Cursos</option>
-            <option>Pet</option>
-            <option>Outros</option>
-          </optgroup>
-          <optgroup label="📌 Fixas">
-            <option>Aluguel/Financiamento</option>
-            <option>Condomínio</option>
-            <option>Água</option>
-            <option>Luz</option>
-            <option>Internet</option>
-            <option>Telefone Douglas</option>
-            <option>Telefone Priscila</option>
-            <option>Plano de Saúde</option>
-            <option>Streaming (Netflix)</option>
-            <option>Streaming (Globoplay)</option>
-            <option>Cartão Douglas</option>
-            <option>Cartão Priscila</option>
-            <option>Outros Fixos</option>
-          </optgroup>
-          <optgroup label="💵 Receitas">
-            <option>Salário</option>
-            <option>Freelance</option>
-            <option>Aluguel Recebido</option>
-            <option>Renda Extra</option>
-            <option>Dividendos</option>
-            <option>Rendimentos</option>
-            <option>Resgate Reserva</option>
-            <option>Resgate Investimento</option>
-            <option>Outros</option>
-          </optgroup>
-        </select>
+        <select class="form-control" id="f-categoria"></select>
       </div>
 
       <!-- Forma de pagamento -->
       <div class="form-group" id="f-forma-wrap">
         <label class="form-label">FORMA DE PAGAMENTO</label>
-        <select class="form-control" id="f-forma">
+        <select class="form-control" id="f-forma" onchange="onFormaChange(this.value)">
           <option>Débito</option>
           <option>Crédito Douglas</option>
           <option>Crédito Priscila</option>
@@ -948,13 +925,13 @@ html { height: 100%; overflow: hidden; }
       <!-- Links -->
       <div id="sub-links" class="sub-pane">
         <div class="card-label" style="margin-bottom:12px">ACESSO RÁPIDO</div>
-        <div class="links-grid">
-          <a href="dashboard.html" target="_blank" class="link-card">
+        <div class="links-grid" id="links-grid">
+          <a href="#" id="link-dashboard" target="_blank" class="link-card" onclick="abrirLink('dashboard',event)">
             <span class="link-card-icon">📊</span>
             <span class="link-card-label">Dashboard</span>
             <span class="link-card-sub">Ver gráficos</span>
           </a>
-          <a href="https://docs.google.com/spreadsheets/d/1HLBTh8Xp-31gmb4an_sHHhqKbhV6C8GUy2IfyMs51hg/edit" target="_blank" class="link-card">
+          <a href="#" id="link-planilha" target="_blank" class="link-card" onclick="abrirLink('planilha',event)">
             <span class="link-card-icon">📋</span>
             <span class="link-card-label">Planilha</span>
             <span class="link-card-sub">Google Sheets</span>
@@ -971,19 +948,44 @@ html { height: 100%; overflow: hidden; }
           <button class="btn-primary" style="margin-top:10px" onclick="salvarConfig()">Salvar e testar</button>
         </div>
         <div class="config-item">
-          <div class="config-label">💳 Vencimento das faturas</div>
-          <div class="config-desc">Dia do mês em que cada fatura vence.</div>
+          <div class="config-label">📋 URL da Planilha</div>
+          <div class="config-desc">Link do Google Sheets para acesso rápido.</div>
+          <input type="url" class="config-input" id="cfg-planilha" placeholder="https://docs.google.com/spreadsheets/…">
+          <button class="btn-primary" style="margin-top:10px" onclick="salvarUrls()">Salvar URLs</button>
+        </div>
+        <div class="config-item">
+          <div class="config-label">📊 URL do Dashboard</div>
+          <div class="config-desc">Link do dashboard HTML (ex: dashboard.html).</div>
+          <input type="url" class="config-input" id="cfg-dashboard" placeholder="https://…/dashboard.html">
+        </div>
+        <div class="config-item">
+          <div class="config-label">💳 Cartão Douglas</div>
+          <div class="config-desc">Dias de fechamento e vencimento da fatura.</div>
           <div style="display:flex;gap:10px;margin-top:8px">
             <div style="flex:1">
-              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">DOUGLAS</label>
-              <input type="number" class="config-input" id="cfg-venc-d" placeholder="Dia (ex: 10)" min="1" max="31">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">FECHAMENTO</label>
+              <input type="number" class="config-input" id="cfg-fech-d" placeholder="Dia" min="1" max="31">
             </div>
             <div style="flex:1">
-              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">PRISCILA</label>
-              <input type="number" class="config-input" id="cfg-venc-p" placeholder="Dia (ex: 15)" min="1" max="31">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">VENCIMENTO</label>
+              <input type="number" class="config-input" id="cfg-venc-d" placeholder="Dia" min="1" max="31">
             </div>
           </div>
-          <button class="btn-primary" style="margin-top:10px" onclick="salvarVencimentos()">Salvar vencimentos</button>
+        </div>
+        <div class="config-item">
+          <div class="config-label">💳 Cartão Priscila</div>
+          <div class="config-desc">Dias de fechamento e vencimento da fatura.</div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">FECHAMENTO</label>
+              <input type="number" class="config-input" id="cfg-fech-p" placeholder="Dia" min="1" max="31">
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">VENCIMENTO</label>
+              <input type="number" class="config-input" id="cfg-venc-p" placeholder="Dia" min="1" max="31">
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top:10px" onclick="salvarVencimentos()">Salvar cartões</button>
         </div>
         <div class="config-item">
           <div class="config-label">🔐 Alterar PINs</div>
@@ -1005,6 +1007,29 @@ html { height: 100%; overflow: hidden; }
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- ══ MODAL CATEGORIAS ══ -->
+<div class="modal-overlay hidden" id="modal-categorias">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="fecharModal('modal-categorias')">✕</button>
+    <div class="modal-title">⚙️ Categorias</div>
+    <div class="modal-sub">Gerencie suas categorias personalizadas</div>
+
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button class="month-chip active" id="cat-tab-despesa" onclick="setCatTab('despesa',this)">💸 Despesa</button>
+      <button class="month-chip" id="cat-tab-fixa" onclick="setCatTab('fixa',this)">📌 Fixa</button>
+      <button class="month-chip" id="cat-tab-receita" onclick="setCatTab('receita',this)">💵 Receita</button>
+    </div>
+
+    <div id="cat-lista" style="margin-bottom:16px;max-height:240px;overflow-y:auto"></div>
+
+    <div style="display:flex;gap:8px">
+      <input type="text" class="form-control" id="cat-nova" placeholder="Nova categoria…" style="flex:1">
+      <button onclick="adicionarCategoria()" style="background:var(--orange);color:#fff;border:none;border-radius:var(--rsm);padding:0 16px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">+ Adicionar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ MODAL NOVA META ══ -->
 <div class="modal-overlay hidden" id="modal-meta">
@@ -1163,6 +1188,18 @@ const CAT_ICONS = {
   'Guardar Reserva':'🐷','Reserva Emergência':'🔒','default':'💰'
 };
 
+const CATS_PADRAO = {
+  despesa: ['Supermercado','Padaria/Açougue','Feira','Farmácia','Combustível','Transporte/Uber',
+            'Manutenção Veículo','Restaurante/Lanche','Delivery','Lazer/Entretenimento',
+            'Vestuário','Beleza/Higiene','Saúde/Médico','Academia','Presentes','Viagem',
+            'Educação/Cursos','Pet','Outros'],
+  fixa:    ['Aluguel/Financiamento','Condomínio','Água','Luz','Internet','Telefone Douglas',
+            'Telefone Priscila','Plano de Saúde','Streaming (Netflix)','Streaming (Globoplay)',
+            'Cartão Douglas','Cartão Priscila','Outros Fixos'],
+  receita: ['Salário','Freelance','Aluguel Recebido','Renda Extra','Dividendos','Rendimentos',
+            'Resgate Reserva','Resgate Investimento','Outros'],
+};
+
 const ANO_ATUAL = new Date().getFullYear();
 const MES_ATUAL = MESES[new Date().getMonth()];
 
@@ -1183,8 +1220,11 @@ const state = {
   fechamentos:  JSON.parse(localStorage.getItem('dpv2_fechamentos')  || '{}'),
   distribuicao: JSON.parse(localStorage.getItem('dpv2_dist')         || '{"salario":0,"despesas":50,"estilo":20,"reserva":10,"emerg":5,"invest":10,"metas":5}'),
   pins:         JSON.parse(localStorage.getItem('dpv2_pins')         || '{"Douglas":"1234","Priscila":"5678"}'),
-  vencimentos:  JSON.parse(localStorage.getItem('dpv2_vencimentos')  || '{"Douglas":10,"Priscila":15}'),
-  scriptUrl:    localStorage.getItem('dpv2_script_url') || '',
+  vencimentos:  JSON.parse(localStorage.getItem('dpv2_vencimentos')  || '{"Douglas":{"venc":10,"fech":4},"Priscila":{"venc":15,"fech":4}}'),
+  categorias:   JSON.parse(localStorage.getItem('dpv2_categorias')   || '{"despesa":[],"fixa":[],"receita":[]}'),
+  scriptUrl:    localStorage.getItem('dpv2_script_url')      || '',
+  planilhaUrl:  localStorage.getItem('dpv2_planilha_url')    || '',
+  dashboardUrl: localStorage.getItem('dpv2_dashboard_url')   || '',
   _syncInterval: null,
   _pinBuffer:    '',
   _selectedUser: null,
@@ -1294,10 +1334,18 @@ function initApp() {
   document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
   document.getElementById('cfg-url').value = state.scriptUrl;
 
+  // Popular categorias padrão (despesa é o tipo inicial)
+  popularCategorias('despesa');
+
+  // Preview de parcela ao digitar valor
+  const fValor = document.getElementById('f-valor');
+  const fParc  = document.getElementById('f-parcelas');
+  if(fValor) fValor.addEventListener('input', atualizarPreviewParcela);
+  if(fParc)  fParc.addEventListener('change', atualizarPreviewParcela);
+
   buildChips('dash-month-chips', state.selMonth, m=>{state.selMonth=m;renderDashboard();});
   buildChips('hist-chips', state.histMonth, m=>{state.histMonth=m;renderHistorico();});
 
-  // Verifica assinaturas vencendo hoje
   verificarAssinaturasVencendo();
 
   renderDashboard();
@@ -1350,7 +1398,7 @@ function isCredito(t) { return (t.forma||'').startsWith('Crédito'); }
 function calcDespesas(txs) {
   return txs.filter(t => {
     if(t.tipo === 'receita') return false;
-    // Crédito só abate quando a fatura for paga
+    if(t.faturaItem) return false; // parcelas não abatam — só o pagamento da fatura abate
     if(isCredito(t) && !t.faturasPaga) return false;
     return true;
   }).reduce((s,t)=>s+parseFloat(t.valor||0),0);
@@ -1358,6 +1406,7 @@ function calcDespesas(txs) {
 function calcByOwner(txs,owner) {
   return txs.filter(t => {
     if(['receita','investimento','reserva','emergencia'].includes(t.tipo)) return false;
+    if(t.faturaItem) return false;
     if(isCredito(t) && !t.faturasPaga) return false;
     return t.titular === owner;
   }).reduce((s,t)=>s+parseFloat(t.valor||0),0);
@@ -1452,7 +1501,8 @@ function renderFaturasDash() {
   if(Object.keys(faturas).length === 0) { wrap.style.display='none'; return; }
   wrap.style.display = 'block';
   list.innerHTML = Object.entries(faturas).map(([titular, dados]) => {
-    const venc = state.vencimentos[titular] || (titular === 'Douglas' ? 10 : 15);
+    const cfg  = state.vencimentos[titular] || {};
+    const venc = cfg.venc || (titular === 'Douglas' ? 10 : 15);
     const diasRestantes = venc - hoje;
     const alerta = diasRestantes >= 0 && diasRestantes <= 3;
     const vencido = diasRestantes < 0;
@@ -1476,7 +1526,8 @@ function renderFaturasDash() {
 function calcFaturas(mes) {
   const txs = txMes(mes);
   const faturas = {};
-  txs.filter(t => (t.forma||'').startsWith('Crédito') && t.tipo !== 'receita' && !t.faturasPaga).forEach(t => {
+  // Usa os itens de fatura (parcelas) para montar o card
+  txs.filter(t => t.faturaItem && !t.faturasPaga).forEach(t => {
     const titular = (t.forma||'').includes('Douglas') ? 'Douglas' : 'Priscila';
     if(!faturas[titular]) faturas[titular] = {total:0, itens:0};
     faturas[titular].total += parseFloat(t.valor||0);
@@ -1485,22 +1536,19 @@ function calcFaturas(mes) {
   return faturas;
 }
 
-function pagarFatura(cartao, mes) {
-  if(!confirm(`Confirmar pagamento da fatura ${cartao} de ${mes}?`)) return;
+function pagarFatura(titular, mes) {
+  if(!confirm(`Confirmar pagamento da fatura ${titular} de ${mes}?`)) return;
 
-  // Calcula o total da fatura
   const total = state.transactions
-    .filter(t => t.mes === mes && (t.forma||'').includes(cartao) && t.tipo !== 'receita' && !t.faturasPaga)
+    .filter(t => t.mes === mes && t.faturaItem && (t.forma||'').includes(titular) && !t.faturasPaga)
     .reduce((s,t) => s + parseFloat(t.valor||0), 0);
 
-  // Marca os lançamentos como pagos
   state.transactions.forEach(t => {
-    if(t.mes === mes && (t.forma||'').includes(cartao) && t.tipo !== 'receita') {
+    if(t.mes === mes && t.faturaItem && (t.forma||'').includes(titular)) {
       t.faturasPaga = true;
     }
   });
 
-  // Cria lançamento de pagamento da fatura
   const hoje = new Date();
   const mesPagamento = MESES[hoje.getMonth()];
   const tx = {
@@ -1508,11 +1556,11 @@ function pagarFatura(cartao, mes) {
     data:       hoje.toISOString().split('T')[0],
     mes:        mesPagamento,
     tipo:       'despesa',
-    titular:    cartao,
-    categoria:  'Cartão ' + cartao,
+    titular:    titular,
+    categoria:  'Cartão ' + titular,
     valor:      total.toFixed(2),
     forma:      'Débito',
-    descricao:  'Pagamento fatura ' + cartao,
+    descricao:  'Pagamento fatura ' + titular,
     obs:        'Fatura de ' + mes,
     lancadoPor: state.user,
     timestamp:  hoje.toISOString(),
@@ -1523,7 +1571,7 @@ function pagarFatura(cartao, mes) {
   showToast('✅ Fatura paga!', 'success');
   renderDashboard();
   if(state.scriptUrl) {
-    syncFaturaSheets(cartao, mes);
+    syncFaturaSheets(titular, mes);
     sendToSheets(tx);
   }
 }
@@ -1667,21 +1715,69 @@ function verificarAssinaturasVencendo() {
 // ══════════════════════════════════════════════════════════
 // LANÇAMENTO
 // ══════════════════════════════════════════════════════════
+function getCategorias(tipo) {
+  const padrao = CATS_PADRAO[tipo] || [];
+  const custom  = state.categorias[tipo] || [];
+  return [...padrao, ...custom];
+}
+
+function popularCategorias(tipo) {
+  const sel = document.getElementById('f-categoria');
+  if(!sel) return;
+  const cats = getCategorias(tipo);
+  sel.innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+}
+
+function onFormaChange(val) {
+  const isCredito = val.startsWith('Crédito');
+  document.getElementById('f-parcelas-wrap').style.display = isCredito ? 'block' : 'none';
+  atualizarPreviewParcela();
+}
+
+function atualizarPreviewParcela() {
+  const val = parseFloat(document.getElementById('f-valor').value) || 0;
+  const parc = parseInt(document.getElementById('f-parcelas')?.value) || 1;
+  const preview = document.getElementById('f-parcela-preview');
+  if(preview && parc > 1 && val > 0) {
+    preview.textContent = fmt(val / parc) + ' por mês';
+  } else if(preview) {
+    preview.textContent = '';
+  }
+}
+
 function setTipo(tipo, btn) {
   state.tipo = tipo;
   document.querySelectorAll('[data-tipo]').forEach(b=>b.classList.remove('active-orange','active-blue','active-green','active-purple'));
   btn.classList.add('active-orange');
-  // Mostra/esconde campos conforme tipo
   const showCat   = !['investimento','reserva','emergencia'].includes(tipo);
   const showForma = !['receita','investimento','reserva','emergencia'].includes(tipo);
   document.getElementById('f-categoria-wrap').style.display = showCat ? 'block' : 'none';
   document.getElementById('f-forma-wrap').style.display = showForma ? 'block' : 'none';
+  if(showCat) popularCategorias(tipo === 'fixa' ? 'fixa' : tipo === 'receita' ? 'receita' : 'despesa');
+  // Reset parcelas se não for crédito
+  const forma = document.getElementById('f-forma')?.value || '';
+  document.getElementById('f-parcelas-wrap').style.display =
+    showForma && forma.startsWith('Crédito') ? 'block' : 'none';
 }
 
 function setOwner(owner, btn) {
   state.owner = owner;
   document.querySelectorAll('[data-owner]').forEach(b=>b.classList.remove('active-blue','active-purple','active-green'));
   btn.classList.add(owner==='Douglas'?'active-blue':owner==='Priscila'?'active-purple':'active-green');
+}
+
+function calcMesFatura(titular, dataCompra) {
+  // Retorna o mês em que a fatura desta compra vai cair
+  const cfg = state.vencimentos[titular] || {fech: 4, venc: 10};
+  const diaFech = cfg.fech || 4;
+  const diaCompra = dataCompra.getDate();
+  const mesCompra = dataCompra.getMonth();
+  const anoCompra = dataCompra.getFullYear();
+  // Se comprou depois do fechamento, vai para o próximo mês
+  if(diaCompra > diaFech) {
+    return new Date(anoCompra, mesCompra + 1, 1);
+  }
+  return new Date(anoCompra, mesCompra, 1);
 }
 
 async function salvarLancamento() {
@@ -1691,15 +1787,20 @@ async function salvarLancamento() {
   const forma = document.getElementById('f-forma').value;
   const obs   = document.getElementById('f-obs').value;
   const cat   = document.getElementById('f-categoria').value;
+  const parcelas = parseInt(document.getElementById('f-parcelas')?.value) || 1;
 
   if(!data || !val || val <= 0) { showToast('Preencha data e valor!', 'error'); return; }
 
   const dateObj = new Date(data + 'T00:00:00');
-  const mes = MESES[dateObj.getMonth()];
+  const mesLancamento = MESES[dateObj.getMonth()]; // mês real do lançamento (para histórico)
+  const isCredito = forma.startsWith('Crédito');
+  const titular = forma.replace('Crédito ','');
 
+  // Lançamento principal — vai para o histórico com o mês real
   const tx = {
     id:         Date.now(),
-    data, mes,
+    data,
+    mes:        mesLancamento,
     tipo:       state.tipo,
     titular:    state.owner,
     categoria:  ['investimento','reserva','emergencia'].includes(state.tipo)
@@ -1707,13 +1808,41 @@ async function salvarLancamento() {
                   : cat,
     valor:      val.toFixed(2),
     forma:      ['receita','investimento','reserva','emergencia'].includes(state.tipo) ? '—' : forma,
-    descricao:  desc,
+    descricao:  desc + (isCredito && parcelas > 1 ? ` (${parcelas}x ${fmt(val/parcelas)})` : ''),
     obs,
     lancadoPor: state.user,
     timestamp:  new Date().toISOString(),
   };
 
-  state.transactions.push(tx);
+  if(isCredito) {
+    // Cria parcelas nas faturas dos meses corretos
+    const mesFaturaBase = calcMesFatura(titular, dateObj);
+    const parcTxs = [];
+    for(let i = 0; i < parcelas; i++) {
+      const mesFaturaDate = new Date(mesFaturaBase.getFullYear(), mesFaturaBase.getMonth() + i, 1);
+      const mesFatura = MESES[mesFaturaDate.getMonth()];
+      parcTxs.push({
+        id:          Date.now() + i + 1,
+        data,
+        mes:         mesFatura,
+        tipo:        'despesa',
+        titular:     state.owner,
+        categoria:   cat,
+        valor:       (val / parcelas).toFixed(2),
+        forma,
+        descricao:   desc + (parcelas > 1 ? ` — parcela ${i+1}/${parcelas}` : ''),
+        obs,
+        lancadoPor:  state.user,
+        timestamp:   new Date().toISOString(),
+        parcelaRef:  tx.id,   // referência ao lançamento original
+        faturaItem:  true,    // marca como item de fatura (não aparece no histórico normal)
+      });
+    }
+    state.transactions.push(tx, ...parcTxs);
+  } else {
+    state.transactions.push(tx);
+  }
+
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
   // Envia para Sheets
@@ -1729,10 +1858,12 @@ async function salvarLancamento() {
   document.getElementById('f-descricao').value = '';
   document.getElementById('f-obs').value = '';
   document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
+  if(document.getElementById('f-parcelas')) document.getElementById('f-parcelas').value = '1';
+  atualizarPreviewParcela();
 
   showToast('✅ Lançamento salvo!', 'success');
-  state.selMonth = mes;
-  buildChips('dash-month-chips', mes, m=>{state.selMonth=m;renderDashboard();});
+  state.selMonth = mesLancamento;
+  buildChips('dash-month-chips', mesLancamento, m=>{state.selMonth=m;renderDashboard();});
   switchTab('dashboard', document.querySelector('.tab-btn'));
   setTimeout(syncFromSheets, 5000);
 }
@@ -1748,7 +1879,7 @@ function filterHist(f, btn) {
 }
 
 function renderHistorico() {
-  let txs = txMes(state.histMonth);
+  let txs = txMes(state.histMonth).filter(t => !t.faturaItem);
   if(state.histFilter !== 'todos') txs = txs.filter(t=>t.titular===state.histFilter);
   txs = [...txs].reverse();
   const list = document.getElementById('hist-list');
@@ -2036,7 +2167,8 @@ function renderFaturas() {
   }
   const hoje = new Date().getDate();
   list.innerHTML = todasFaturas.map(f => {
-    const venc = state.vencimentos[f.titular] || (f.titular === 'Douglas' ? 10 : 15);
+    const cfg2 = state.vencimentos[f.titular] || {};
+    const venc = cfg2.venc || (f.titular === 'Douglas' ? 10 : 15);
     const diasRestantes = venc - hoje;
     const alerta = diasRestantes >= 0 && diasRestantes <= 3;
     const vencido = diasRestantes < 0;
@@ -2116,22 +2248,104 @@ function salvarConfig() {
 }
 
 function salvarVencimentos() {
-  const d = parseInt(document.getElementById('cfg-venc-d').value);
-  const p = parseInt(document.getElementById('cfg-venc-p').value);
-  if(!d || d < 1 || d > 31) { showToast('Dia inválido para Douglas!', 'error'); return; }
-  if(!p || p < 1 || p > 31) { showToast('Dia inválido para Priscila!', 'error'); return; }
-  state.vencimentos = { Douglas: d, Priscila: p };
+  const fd = parseInt(document.getElementById('cfg-fech-d').value);
+  const vd = parseInt(document.getElementById('cfg-venc-d').value);
+  const fp = parseInt(document.getElementById('cfg-fech-p').value);
+  const vp = parseInt(document.getElementById('cfg-venc-p').value);
+  if(!fd||fd<1||fd>31||!vd||vd<1||vd>31) { showToast('Dias inválidos para Douglas!','error'); return; }
+  if(!fp||fp<1||fp>31||!vp||vp<1||vp>31) { showToast('Dias inválidos para Priscila!','error'); return; }
+  state.vencimentos = { Douglas:{fech:fd,venc:vd}, Priscila:{fech:fp,venc:vp} };
   localStorage.setItem('dpv2_vencimentos', JSON.stringify(state.vencimentos));
-  showToast('✅ Vencimentos salvos!', 'success');
+  showToast('✅ Cartões salvos!', 'success');
+}
+
+function salvarUrls() {
+  const planilha  = document.getElementById('cfg-planilha').value.trim();
+  const dashboard = document.getElementById('cfg-dashboard').value.trim();
+  state.planilhaUrl  = planilha;
+  state.dashboardUrl = dashboard;
+  localStorage.setItem('dpv2_planilha_url',  planilha);
+  localStorage.setItem('dpv2_dashboard_url', dashboard);
+  showToast('✅ URLs salvas!', 'success');
+}
+
+function abrirLink(tipo, e) {
+  const url = tipo === 'planilha' ? state.planilhaUrl : state.dashboardUrl;
+  if(!url) {
+    e.preventDefault();
+    showToast('Configure a URL em Mais → Config', 'error');
+    return;
+  }
+  document.getElementById('link-' + tipo).href = url;
 }
 
 function carregarConfig() {
   const url = document.getElementById('cfg-url');
   if(url) url.value = state.scriptUrl || '';
-  const vd = document.getElementById('cfg-venc-d');
-  const vp = document.getElementById('cfg-venc-p');
-  if(vd) vd.value = state.vencimentos.Douglas  || 10;
-  if(vp) vp.value = state.vencimentos.Priscila || 15;
+  const pl = document.getElementById('cfg-planilha');
+  if(pl) pl.value = state.planilhaUrl || '';
+  const db = document.getElementById('cfg-dashboard');
+  if(db) db.value = state.dashboardUrl || '';
+  const vd = state.vencimentos.Douglas  || {fech:4, venc:10};
+  const vp = state.vencimentos.Priscila || {fech:4, venc:15};
+  const fd = document.getElementById('cfg-fech-d'); if(fd) fd.value = vd.fech||4;
+  const vdd = document.getElementById('cfg-venc-d'); if(vdd) vdd.value = vd.venc||10;
+  const fp2 = document.getElementById('cfg-fech-p'); if(fp2) fp2.value = vp.fech||4;
+  const vpp = document.getElementById('cfg-venc-p'); if(vpp) vpp.value = vp.venc||15;
+}
+
+// ── CATEGORIAS ──
+let _catTab = 'despesa';
+
+function setCatTab(tipo, btn) {
+  _catTab = tipo;
+  document.querySelectorAll('[id^="cat-tab-"]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCatLista();
+}
+
+function renderCatLista() {
+  const lista = document.getElementById('cat-lista');
+  if(!lista) return;
+  const custom = state.categorias[_catTab] || [];
+  if(!custom.length) {
+    lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Nenhuma categoria personalizada ainda.</div>';
+    return;
+  }
+  lista.innerHTML = custom.map((c,i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px">${c}</span>
+      <button onclick="removerCategoria(${i})" style="background:var(--red-l);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Remover</button>
+    </div>`).join('');
+}
+
+function adicionarCategoria() {
+  const input = document.getElementById('cat-nova');
+  const nome = input.value.trim();
+  if(!nome) { showToast('Digite o nome da categoria!','error'); return; }
+  const todas = [...(CATS_PADRAO[_catTab]||[]), ...(state.categorias[_catTab]||[])];
+  if(todas.some(c=>c.toLowerCase()===nome.toLowerCase())) { showToast('Categoria já existe!','error'); return; }
+  if(!state.categorias[_catTab]) state.categorias[_catTab] = [];
+  state.categorias[_catTab].push(nome);
+  localStorage.setItem('dpv2_categorias', JSON.stringify(state.categorias));
+  input.value = '';
+  renderCatLista();
+  showToast('✅ Categoria adicionada!','success');
+}
+
+function removerCategoria(idx) {
+  state.categorias[_catTab].splice(idx, 1);
+  localStorage.setItem('dpv2_categorias', JSON.stringify(state.categorias));
+  renderCatLista();
+}
+
+function abrirModalCategorias() {
+  _catTab = 'despesa';
+  document.querySelectorAll('[id^="cat-tab-"]').forEach(b=>b.classList.remove('active'));
+  const dt = document.getElementById('cat-tab-despesa');
+  if(dt) dt.classList.add('active');
+  renderCatLista();
+  abrirModal('modal-categorias');
 }
 
 function salvarPins() {
