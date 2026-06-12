@@ -1867,19 +1867,7 @@ async function salvarLancamento() {
 
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  // Envia para Sheets — principal + parcelas se houver
-  if(state.scriptUrl) {
-    const btn = document.getElementById('btn-salvar');
-    btn.textContent = 'Enviando…'; btn.disabled = true;
-    await sendToSheets(tx);
-    // Envia faturaItems (parcelas) para o Sheets também, para poder excluir depois
-    if(isCredito && parcTxs && parcTxs.length) {
-      for(const p of parcTxs) await sendToSheets(p);
-    }
-    btn.textContent = 'Salvar lançamento'; btn.disabled = false;
-  }
-
-  // Reset form
+  // Reset form e navega imediatamente — não espera o Sheets
   document.getElementById('f-valor').value = '';
   document.getElementById('f-descricao').value = '';
   document.getElementById('f-obs').value = '';
@@ -1891,7 +1879,27 @@ async function salvarLancamento() {
   state.selMonth = mesLancamento;
   buildChips('dash-month-chips', mesLancamento, m=>{state.selMonth=m;renderDashboard();});
   switchTab('dashboard', document.querySelector('.tab-btn'));
-  setTimeout(syncFromSheets, 5000);
+
+  // Envia para Sheets em background — não bloqueia o app
+  if(state.scriptUrl) {
+    const btn = document.getElementById('btn-salvar');
+    if(btn) { btn.textContent = 'Enviando…'; btn.disabled = true; }
+    const timeout = new Promise(res => setTimeout(res, 8000));
+    Promise.race([
+      (async () => {
+        await sendToSheets(tx);
+        if(isCredito && parcTxs && parcTxs.length) {
+          for(const p of parcTxs) await sendToSheets(p);
+        }
+      })(),
+      timeout
+    ]).finally(() => {
+      if(btn) { btn.textContent = 'Salvar lançamento'; btn.disabled = false; }
+      setTimeout(syncFromSheets, 3000);
+    });
+  } else {
+    setTimeout(syncFromSheets, 5000);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
