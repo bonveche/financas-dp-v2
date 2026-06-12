@@ -41,17 +41,18 @@ body {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 /* ══════════════════════════════════════
    APP SHELL
 ══════════════════════════════════════ */
-#app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); position: relative; }
+#app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; height: 100vh; }
 
 /* ══════════════════════════════════════
    SCREENS
 ══════════════════════════════════════ */
-.screen { display: none; flex-direction: column; min-height: 100vh; }
+.screen { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
 .screen.active { display: flex; }
 
 /* ══════════════════════════════════════
@@ -60,7 +61,7 @@ body {
 #screen-login {
   background: linear-gradient(160deg, #F26522 0%, #C44E0E 100%);
   justify-content: center; align-items: center;
-  padding: 40px 28px; min-height: 100vh;
+  padding: 40px 28px; overflow-y: auto;
 }
 .login-logo-wrap { text-align: center; margin-bottom: 40px; }
 .login-coin {
@@ -118,7 +119,7 @@ body {
 /* ══════════════════════════════════════
    MAIN APP
 ══════════════════════════════════════ */
-#screen-app { background: var(--bg); flex: 1; display: flex; flex-direction: column; }
+#screen-app { background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* Header */
 .app-header {
@@ -163,8 +164,8 @@ body {
 .tab-icon { font-size: 20px; }
 .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
 
-/* Tab content */
-.tab-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+/* Tab content — única área que rola */
+.tab-content { flex: 1; overflow-y: auto; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
 .tab-pane { display: none; padding: 16px; }
 .tab-pane.active { display: block; }
 
