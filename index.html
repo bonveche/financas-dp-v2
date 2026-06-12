@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#F26522">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Finanças DP</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -123,6 +125,7 @@ html { height: 100%; overflow: hidden; }
 .app-header {
   background: var(--orange);
   padding: 16px 20px 12px;
+  padding-top: max(16px, env(safe-area-inset-top));
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: 0 2px 8px rgba(242,101,34,0.3);
   flex-shrink: 0;
@@ -629,6 +632,12 @@ html { height: 100%; overflow: hidden; }
         <span style="font-size:14px;font-weight:800;color:var(--blue)" id="dash-saldo-anterior">R$ 0,00</span>
       </div>
 
+      <!-- Crédito a pagar (fatura em aberto) -->
+      <div id="credito-aberto-card" style="display:none;background:var(--yellow-l);border:1px solid var(--yellow);border-radius:var(--rsm);padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:#B7791F;font-weight:600">💳 Crédito a pagar (fatura aberta)</span>
+        <span style="font-size:14px;font-weight:800;color:#B7791F" id="dash-credito-aberto">R$ 0,00</span>
+      </div>
+
       <!-- Saldo hero -->
       <div class="saldo-hero">
         <div class="saldo-hero-label">Saldo do mês</div>
@@ -729,6 +738,7 @@ html { height: 100%; overflow: hidden; }
           <button class="toggle-btn" data-tipo="fixa" onclick="setTipo('fixa',this)">📌 Fixa</button>
           <button class="toggle-btn" data-tipo="investimento" onclick="setTipo('investimento',this)">📈 Investir</button>
           <button class="toggle-btn" data-tipo="reserva" onclick="setTipo('reserva',this)">🐷 Guardar</button>
+          <button class="toggle-btn" data-tipo="emergencia" onclick="setTipo('emergencia',this)">🔒 Emergência</button>
         </div>
       </div>
 
@@ -1135,7 +1145,7 @@ const CAT_ICONS = {
   'Aluguel/Financiamento':'🏠','Plano de Saúde':'🏥','Feira':'🥬',
   'Transporte/Uber':'🚗','Viagem':'✈️','Pet':'🐾','Presentes':'🎁',
   'Dividendos':'📈','Rendimentos':'💰','Investimento':'📈',
-  'Guardar Reserva':'🐷','default':'💰'
+  'Guardar Reserva':'🐷','Reserva Emergência':'🔒','default':'💰'
 };
 
 const ANO_ATUAL = new Date().getFullYear();
@@ -1319,8 +1329,22 @@ function fmt(v) { return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDig
 function txMes(mes) { return state.transactions.filter(t=>t.mes===mes); }
 
 function calcReceita(txs)  { return txs.filter(t=>t.tipo==='receita').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
-function calcDespesas(txs) { return txs.filter(t=>t.tipo!=='receita'&&t.tipo!=='investimento'&&t.tipo!=='reserva').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
-function calcByOwner(txs,owner) { return txs.filter(t=>t.tipo!=='receita'&&t.tipo!=='investimento'&&t.tipo!=='reserva'&&t.titular===owner).reduce((s,t)=>s+parseFloat(t.valor||0),0); }
+function isCredito(t) { return (t.forma||'').startsWith('Crédito'); }
+function calcDespesas(txs) {
+  return txs.filter(t => {
+    if(t.tipo === 'receita') return false;
+    // Crédito só abate quando a fatura for paga
+    if(isCredito(t) && !t.faturasPaga) return false;
+    return true;
+  }).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+}
+function calcByOwner(txs,owner) {
+  return txs.filter(t => {
+    if(['receita','investimento','reserva','emergencia'].includes(t.tipo)) return false;
+    if(isCredito(t) && !t.faturasPaga) return false;
+    return t.titular === owner;
+  }).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+}
 
 function getSaldoAnterior(mes) {
   const idx = MESES.indexOf(mes);
@@ -1332,21 +1356,20 @@ function getSaldoAnterior(mes) {
 // ══════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════
+function calcGuardar(txs)    { return txs.filter(t=>t.tipo==='reserva').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
+function calcInvestirTxs(txs){ return txs.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
+function calcCreditoAberto(txs){ return txs.filter(t=>t.tipo!=='receita'&&isCredito(t)&&!t.faturasPaga).reduce((s,t)=>s+parseFloat(t.valor||0),0); }
+
 function renderDashboard() {
-  const txs      = txMes(state.selMonth);
-  const receita  = calcReceita(txs);
-  const despesas = calcDespesas(txs);
+  const txs           = txMes(state.selMonth);
+  const receita       = calcReceita(txs);
+  const despesas      = calcDespesas(txs);
+  const guardar       = calcGuardar(txs);
+  const investirVal   = calcInvestirTxs(txs);
+  const creditoAberto = calcCreditoAberto(txs);
   const saldoAnterior = getSaldoAnterior(state.selMonth);
   const totalDisponivel = receita + saldoAnterior;
-  const saldo    = totalDisponivel - despesas;
-
-  const dist = state.distribuicao;
-  const pctReserva = (dist.reserva||10)/100;
-  const pctInvest  = (dist.invest||10)/100;
-
-  // Zera se saldo negativo
-  const poupar  = saldo > 0 ? receita * pctReserva : 0;
-  const investir = saldo > 0 ? receita * pctInvest  : 0;
+  const saldo         = totalDisponivel - despesas;
 
   document.getElementById('dash-title').textContent = state.selMonth + ' ' + ANO_ATUAL;
   document.getElementById('dash-sub').textContent = txs.length + ' lançamentos · ' + (saldo >= 0 ? '✅ Positivo' : '⚠️ Negativo');
@@ -1357,6 +1380,13 @@ function renderDashboard() {
     saCard.style.display = 'flex';
     document.getElementById('dash-saldo-anterior').textContent = fmt(saldoAnterior);
   } else { saCard.style.display = 'none'; }
+
+  // Crédito aberto (ainda não pago)
+  const creditoCard = document.getElementById('credito-aberto-card');
+  if(creditoAberto > 0) {
+    creditoCard.style.display = 'flex';
+    document.getElementById('dash-credito-aberto').textContent = fmt(creditoAberto);
+  } else { creditoCard.style.display = 'none'; }
 
   // Saldo hero
   document.getElementById('dash-saldo').textContent = fmt(saldo);
@@ -1369,10 +1399,10 @@ function renderDashboard() {
   // KPIs
   document.getElementById('dash-receita').textContent  = fmt(receita);
   document.getElementById('dash-despesas').textContent = fmt(despesas);
-  document.getElementById('dash-poupar-label').textContent  = `🐷 Guardar (${Math.round(pctReserva*100)}%)`;
-  document.getElementById('dash-investir-label').textContent = `🎯 Investir (${Math.round(pctInvest*100)}%)`;
-  document.getElementById('dash-poupar').textContent  = fmt(poupar);
-  document.getElementById('dash-investir').textContent = fmt(investir);
+  document.getElementById('dash-poupar-label').textContent  = '🐷 Guardar';
+  document.getElementById('dash-investir-label').textContent = '📈 Investir';
+  document.getElementById('dash-poupar').textContent  = fmt(guardar);
+  document.getElementById('dash-investir').textContent = fmt(investirVal);
 
   // Contas virtuais
   document.getElementById('dash-reserva-mensal').textContent = fmt(state.contas.reservaMensal||0);
@@ -1588,8 +1618,8 @@ function setTipo(tipo, btn) {
   document.querySelectorAll('[data-tipo]').forEach(b=>b.classList.remove('active-orange','active-blue','active-green','active-purple'));
   btn.classList.add('active-orange');
   // Mostra/esconde campos conforme tipo
-  const showCat   = !['investimento','reserva'].includes(tipo);
-  const showForma = tipo !== 'receita';
+  const showCat   = !['investimento','reserva','emergencia'].includes(tipo);
+  const showForma = !['receita','investimento','reserva','emergencia'].includes(tipo);
   document.getElementById('f-categoria-wrap').style.display = showCat ? 'block' : 'none';
   document.getElementById('f-forma-wrap').style.display = showForma ? 'block' : 'none';
 }
@@ -1618,9 +1648,11 @@ async function salvarLancamento() {
     data, mes,
     tipo:       state.tipo,
     titular:    state.owner,
-    categoria:  ['investimento','reserva'].includes(state.tipo) ? (state.tipo==='investimento'?'Investimento':'Guardar Reserva') : cat,
+    categoria:  ['investimento','reserva','emergencia'].includes(state.tipo)
+                  ? (state.tipo==='investimento'?'Investimento':state.tipo==='reserva'?'Guardar Reserva':'Reserva Emergência')
+                  : cat,
     valor:      val.toFixed(2),
-    forma:      state.tipo === 'receita' ? '—' : forma,
+    forma:      ['receita','investimento','reserva','emergencia'].includes(state.tipo) ? '—' : forma,
     descricao:  desc,
     obs,
     lancadoPor: state.user,
@@ -1636,15 +1668,17 @@ async function salvarLancamento() {
     localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
   }
 
-  // Se é tipo investimento, adiciona na conta
+  // Atualiza contas virtuais conforme tipo
   if(state.tipo === 'investimento') {
     state.contas.investimentos = (state.contas.investimentos||0) + val;
     localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
   }
-
-  // Se é tipo reserva, adiciona na reserva mensal
   if(state.tipo === 'reserva') {
     state.contas.reservaMensal = (state.contas.reservaMensal||0) + val;
+    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
+  }
+  if(state.tipo === 'emergencia') {
+    state.contas.reservaEmerg = (state.contas.reservaEmerg||0) + val;
     localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
   }
 
@@ -1693,13 +1727,14 @@ function renderHistorico() {
 
 function txCard(t, showDel=false) {
   const icon = CAT_ICONS[t.categoria] || CAT_ICONS.default;
-  const isInc = t.tipo === 'receita';
-  const isInv = t.tipo === 'investimento';
-  const isRes = t.tipo === 'reserva';
+  const isInc  = t.tipo === 'receita';
+  const isInv  = t.tipo === 'investimento';
+  const isRes  = t.tipo === 'reserva';
+  const isEmg  = t.tipo === 'emergencia';
   const ownerColor = t.titular==='Douglas'?'var(--blue)':t.titular==='Priscila'?'var(--purple)':'var(--green)';
-  const iconBg = isInc?'var(--green-l)':isInv||isRes?'var(--orange-l)':'var(--s2)';
-  const amtColor = isInc||isInv||isRes?'var(--green)':'var(--red)';
-  const prefix = isInc||isInv||isRes?'+':'-';
+  const iconBg   = isInc?'var(--green-l)':isInv||isRes||isEmg?'var(--orange-l)':'var(--s2)';
+  const amtColor = isInc||isInv||isRes||isEmg?'var(--green)':'var(--red)';
+  const prefix   = isInc||isInv||isRes||isEmg?'+':'-';
   const isFatura = (t.forma||'').startsWith('Crédito') && !isInc;
   return `<div class="tx-item" id="tx-${t.id}">
     <div class="tx-icon" style="background:${iconBg}">${icon}</div>
