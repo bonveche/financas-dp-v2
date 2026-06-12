@@ -1302,6 +1302,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='dashboard') renderDashboard();
   if(name==='metas') renderMetas();
+  if(name==='lancar') popularCategorias(state.tipo === 'fixa' ? 'fixa' : state.tipo === 'receita' ? 'receita' : 'despesa');
   if(name==='historico') { buildChips('hist-chips', state.histMonth, m=>{state.histMonth=m;renderHistorico();}); renderHistorico(); }
   if(name==='mais') { renderAssinaturas(); carregarDist(); renderFaturas(); }
 }
