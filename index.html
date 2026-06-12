@@ -150,22 +150,21 @@ body {
 /* Tab bar */
 .tab-bar {
   display: flex; background: var(--surface);
-  border-top: 1px solid var(--border);
-  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 100%; max-width: 480px; z-index: 100;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  flex-shrink: 0;
 }
 .tab-btn {
   flex: 1; padding: 10px 4px 8px; background: none; border: none;
   color: var(--muted); cursor: pointer; font-size: 10px; font-family: inherit;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  transition: color .2s; border-top: 2px solid transparent;
+  transition: color .2s; border-bottom: 2px solid transparent;
 }
 .tab-icon { font-size: 20px; }
-.tab-btn.active { color: var(--orange); border-top-color: var(--orange); }
+.tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
 
 /* Tab content */
-.tab-content { flex: 1; overflow-y: auto; padding-bottom: 70px; }
+.tab-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
 .tab-pane { display: none; padding: 16px; }
 .tab-pane.active { display: block; }
 
@@ -516,7 +515,6 @@ body {
 
 @media (min-width: 500px) {
   #app { box-shadow: var(--shadow-md); }
-  .tab-bar { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 }
 </style>
 </head>
