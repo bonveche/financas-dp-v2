@@ -996,6 +996,17 @@ html { height: 100%; overflow: hidden; }
           <button class="btn-primary" style="margin-top:10px;background:var(--purple)" onclick="salvarPins()">Salvar PINs</button>
         </div>
         <div class="config-item">
+          <div class="config-label">📤 Exportar lançamentos</div>
+          <div class="config-desc">Gera um arquivo JSON com todos os lançamentos.</div>
+          <button class="btn-primary" style="margin-top:10px" onclick="exportarLancamentos()">Exportar JSON</button>
+        </div>
+        <div class="config-item">
+          <div class="config-label">📥 Importar lançamentos</div>
+          <div class="config-desc">Importa lançamentos de um arquivo JSON exportado pelo v1 ou v2.</div>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarLancamentos(this)">
+          <button class="btn-primary" style="margin-top:10px;background:var(--blue)" onclick="document.getElementById('import-file').click()">Selecionar arquivo JSON</button>
+        </div>
+        <div class="config-item">
           <div class="config-label">📱 Instalar como app</div>
           <div class="config-desc">Chrome Android: ⋮ → <strong>Adicionar à tela inicial</strong><br>Safari iPhone: compartilhar → <strong>Adicionar à Tela de Início</strong></div>
         </div>
@@ -2297,6 +2308,51 @@ function salvarDist() {
 // ══════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════
+function exportarLancamentos() {
+  // Exporta só lançamentos reais — sem faturaItems internos
+  const txs = state.transactions.filter(t => !t.faturaItem);
+  const dados = {
+    versao: 'v2',
+    exportadoEm: new Date().toISOString(),
+    transactions: txs
+  };
+  const json = JSON.stringify(dados, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'financas-dp-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Exportado com sucesso!', 'success');
+}
+
+function importarLancamentos(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const dados = JSON.parse(e.target.result);
+      const txs = dados.transactions || [];
+      if(!txs.length) { showToast('Nenhum lançamento encontrado.', 'error'); return; }
+      // Mescla — sobrescreve por ID
+      const mapaLocal = {};
+      state.transactions.forEach(t => mapaLocal[String(t.id)] = t);
+      txs.forEach(t => mapaLocal[String(t.id)] = t);
+      state.transactions = Object.values(mapaLocal).sort((a,b) => new Date(a.timestamp||0) - new Date(b.timestamp||0));
+      localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+      renderDashboard();
+      renderHistorico();
+      showToast('✅ ' + txs.length + ' lançamentos importados!', 'success');
+    } catch(err) {
+      showToast('❌ Arquivo inválido.', 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
 function salvarConfig() {
   const url = document.getElementById('cfg-url').value.trim();
   state.scriptUrl = url;
