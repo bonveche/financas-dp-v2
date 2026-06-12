@@ -1494,7 +1494,7 @@ function renderDashboard() {
   renderFaturasDash();
 
   // Últimos lançamentos
-  const recent = [...txs].reverse().slice(0,5);
+  const recent = [...txs].filter(t => !t.faturaItem).reverse().slice(0,5);
   const list = document.getElementById('dash-recent');
   list.innerHTML = recent.length ? recent.map(t=>txCard(t,false)).join('') :
     '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Nenhum lançamento em '+state.selMonth+'</div></div>';
@@ -1934,18 +1934,17 @@ function txCard(t, showDel=false) {
 async function excluirLancamento(id) {
   if(!confirm('Excluir este lançamento? Será removido do app e da planilha.')) return;
   const tx = state.transactions.find(t=>String(t.id)===String(id));
-  // Reverte contas virtuais se necessário
-  if(tx) {
-    if(tx.forma==='Reserva Mensal') state.contas.reservaMensal += parseFloat(tx.valor||0);
-    if(tx.tipo==='investimento') state.contas.investimentos -= parseFloat(tx.valor||0);
-    if(tx.tipo==='reserva') state.contas.reservaMensal -= parseFloat(tx.valor||0);
-    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
-  }
-  state.transactions = state.transactions.filter(t=>String(t.id)!==String(id));
+
+  // Remove o lançamento principal E todos os faturaItems vinculados a ele
+  state.transactions = state.transactions.filter(t =>
+    String(t.id) !== String(id) && String(t.parcelaRef) !== String(id)
+  );
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+
   const el = document.getElementById('tx-'+id);
   if(el) el.remove();
   renderDashboard();
+  renderHistorico();
   showToast('🗑 Lançamento excluído.');
   if(state.scriptUrl) fetch(state.scriptUrl+'?action=delete&id='+id,{mode:'no-cors'});
 }
