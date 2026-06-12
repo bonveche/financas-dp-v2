@@ -1223,6 +1223,7 @@ const state = {
   pins:         JSON.parse(localStorage.getItem('dpv2_pins')         || '{"Douglas":"1234","Priscila":"5678"}'),
   vencimentos:  JSON.parse(localStorage.getItem('dpv2_vencimentos')  || '{"Douglas":{"venc":10,"fech":4},"Priscila":{"venc":15,"fech":4}}'),
   deletedIds:   new Set(JSON.parse(localStorage.getItem('dpv2_deleted_ids') || '[]')),
+  categorias:   JSON.parse(localStorage.getItem('dpv2_categorias') || '{"despesa":[],"fixa":[],"receita":[]}'),
   scriptUrl:    localStorage.getItem('dpv2_script_url')      || '',
   planilhaUrl:  localStorage.getItem('dpv2_planilha_url')    || '',
   dashboardUrl: localStorage.getItem('dpv2_dashboard_url')   || '',
