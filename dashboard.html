@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dashboard — Finanças DP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #F0F2F5;
+  --surface:  #FFFFFF;
+  --s2:       #E8EAF0;
+  --s3:       #F5F6FA;
+  --border:   #D8DAE0;
+  --text:     #1A1D2E;
+  --muted:    #888B9E;
+  --orange:   #F26522;
+  --orange-l: #FEF0E8;
+  --orange-d: #C44E0E;
+  --green:    #2E9E5B;
+  --green-l:  #E8F7EF;
+  --red:      #D93025;
+  --red-l:    #FDECEA;
+  --yellow:   #F59E0B;
+  --yellow-l: #FEF9E7;
+  --blue:     #2E86C1;
+  --blue-l:   #E8F4FB;
+  --purple:   #7D3C98;
+  --purple-l: #F5EEF8;
+  --radius:   16px;
+  --rsm:      10px;
+  --shadow:   0 2px 12px rgba(0,0,0,0.07);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+#app { max-width: 480px; margin: 0 auto; }
+
+/* Header */
+.header {
+  background: var(--orange);
+  padding: 18px 20px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(242,101,34,0.3);
+  margin-bottom: 16px;
+}
+.header-title h1 { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+.header-title p  { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.month-select {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; border-radius: var(--rsm); padding: 7px 10px;
+  font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+}
+.month-select option { background: var(--orange-d); color: #fff; }
+.btn-refresh {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; border-radius: var(--rsm); padding: 7px 12px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.btn-refresh:active { background: rgba(255,255,255,0.35); }
+
+/* Padding wrapper */
+.content { padding: 0 16px; }
+
+/* Config banner */
+.config-banner {
+  background: var(--yellow-l); border: 1.5px solid var(--yellow);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+}
+.config-banner h3 { color: var(--yellow); font-size: 14px; margin-bottom: 6px; }
+.config-banner p  { color: var(--muted); font-size: 12px; margin-bottom: 12px; line-height: 1.5; }
+.config-input {
+  width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--rsm); padding: 10px 12px; color: var(--text);
+  font-size: 13px; font-family: inherit; outline: none; margin-bottom: 8px;
+}
+.config-input:focus { border-color: var(--orange); }
+.btn-save {
+  width: 100%; padding: 11px; background: var(--orange); color: #fff; border: none;
+  border-radius: var(--rsm); font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+}
+
+/* Loading */
+.loading {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 20px; color: var(--muted);
+}
+.loading.show { display: flex; }
+.spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--orange); border-radius: 50%;
+  animation: spin 1s linear infinite; margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Saldo hero */
+.saldo-hero {
+  background: linear-gradient(135deg, var(--orange), var(--orange-d));
+  border-radius: var(--radius); padding: 20px; margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(242,101,34,0.25);
+}
+.saldo-hero-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.saldo-hero-value { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 10px; }
+.saldo-bar-wrap { height: 5px; background: rgba(255,255,255,0.25); border-radius: 99px; overflow: hidden; margin-bottom: 5px; }
+.saldo-bar { height: 100%; border-radius: 99px; background: #fff; transition: width .5s; }
+.saldo-bar-label { font-size: 11px; color: rgba(255,255,255,0.8); }
+
+/* KPI grid */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.kpi {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.kpi-value { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+.kpi-value.green  { color: var(--green);  }
+.kpi-value.red    { color: var(--red);    }
+.kpi-value.orange { color: var(--orange); }
+.kpi-value.blue   { color: var(--blue);   }
+
+/* Contas virtuais */
+.contas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.conta-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.conta-icon { font-size: 18px; margin-bottom: 5px; }
+.conta-label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.conta-value { font-size: 16px; font-weight: 800; }
+
+/* Split */
+.split-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.split-card {
+  background: var(--surface); border-radius: var(--rsm);
+  padding: 12px 8px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.split-name { font-size: 10px; font-weight: 700; margin-bottom: 4px; }
+.split-name.d { color: var(--blue); }
+.split-name.p { color: var(--purple); }
+.split-name.c { color: var(--green); }
+.split-value { font-size: 13px; font-weight: 800; }
+
+/* Section label */
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px; margin-top: 4px;
+}
+
+/* Chart card */
+.chart-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.chart-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 14px; }
+.chart-wrap { position: relative; height: 180px; }
+
+/* Table */
+.table-card {
+  background: var(--surface); border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+  padding: 10px 14px; font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--muted); text-align: left;
+  background: var(--s3); border-bottom: 1px solid var(--border);
+}
+td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--s2); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--s3); }
+.td-right { text-align: right; font-weight: 700; }
+.td-center { text-align: center; }
+
+/* Badge */
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 8px;
+  border-radius: 99px; font-size: 10px; font-weight: 700;
+}
+.badge.green  { background: var(--green-l);  color: var(--green);  }
+.badge.red    { background: var(--red-l);    color: var(--red);    }
+.badge.yellow { background: var(--yellow-l); color: var(--yellow); }
+.badge.orange { background: var(--orange-l); color: var(--orange); }
+
+/* Error */
+.error-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+.error-icon { font-size: 32px; margin-bottom: 10px; }
+.btn-retry {
+  background: var(--orange-l); border: 1.5px solid var(--orange); color: var(--orange);
+  border-radius: var(--rsm); padding: 8px 20px; cursor: pointer; font-size: 13px; font-weight: 700; margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <h1>💰 Dashboard</h1>
+      <p id="header-sub">Douglas & Priscila</p>
+    </div>
+    <div class="header-right">
+      <select class="month-select" id="month-select" onchange="if(scriptUrl) carregarDados()"></select>
+      <button class="btn-refresh" onclick="carregarDados()">🔄</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Config banner -->
+    <div class="config-banner" id="config-banner" style="display:none">
+      <h3>⚙️ Configure a URL do Apps Script</h3>
+      <p>Cole a URL da sua implantação do Google Apps Script para carregar os dados.</p>
+      <input type="url" class="config-input" id="url-input" placeholder="https://script.google.com/macros/s/…/exec">
+      <button class="btn-save" onclick="salvarUrl()">Salvar e carregar dados</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div>Carregando dados…</div>
+    </div>
+
+    <!-- Dashboard content -->
+    <div id="dash-content" style="display:none"></div>
+
+  </div>
+</div>
+
+<script>
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+let scriptUrl = '';
+let dadosCache = null;
+let chartLine = null;
+let chartPizza = null;
+
+// Preenche select de meses
+const sel = document.getElementById('month-select');
+MESES.forEach((m,i) => {
+  const opt = document.createElement('option');
+  opt.value = m; opt.textContent = m.slice(0,3);
+  if(i === new Date().getMonth()) opt.selected = true;
+  sel.appendChild(opt);
+});
+
+function fmt(v) { return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function soma(arr,campo) { return (arr||[]).reduce((s,r)=>s+(parseFloat(r[campo])||0),0); }
+
+// ── Init ────────────────────────────────────────────────
+window.onload = () => {
+  // Tenta pegar URL salva pelo app v2 ou app antigo
+  scriptUrl = localStorage.getItem('dpv2_script_url') || localStorage.getItem('dp_script_url') || '';
+  if(scriptUrl) {
+    document.getElementById('url-input').value = scriptUrl;
+    carregarDados();
+  } else {
+    document.getElementById('config-banner').style.display = 'block';
+  }
+};
+
+function salvarUrl() {
+  const url = document.getElementById('url-input').value.trim();
+  if(!url) return;
+  scriptUrl = url;
+  localStorage.setItem('dpv2_script_url', url);
+  document.getElementById('config-banner').style.display = 'none';
+  carregarDados();
+}
+
+// ── Load data ───────────────────────────────────────────
+async function carregarDados() {
+  if(!scriptUrl) {
+    document.getElementById('config-banner').style.display = 'block';
+    return;
+  }
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('dash-content').style.display = 'none';
+  [chartLine, chartPizza].forEach(c=>{ try{c?.destroy();}catch(e){} });
+  chartLine = chartPizza = null;
+
+  try {
+    const resp = await fetch(scriptUrl+'?action=readAll&t='+Date.now());
+    const data = await resp.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+    dadosCache = data;
+    renderDash(data);
+  } catch(e) {
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('dash-content').style.display = 'block';
+    document.getElementById('dash-content').innerHTML = `
+      <div class="error-state">
+        <div class="error-icon">⚠️</div>
+        <div style="font-weight:700;color:var(--red);margin-bottom:6px">Erro ao carregar</div>
+        <div style="font-size:12px">${e.message}</div>
+        <button class="btn-retry" onclick="carregarDados()">Tentar novamente</button>
+      </div>`;
+  }
+}
+
+// ── Render ──────────────────────────────────────────────
+function renderDash(data) {
+  const mes = document.getElementById('month-select').value;
+  const ano = new Date().getFullYear();
+
+  const varTx = data.transactions?.variaveis || [];
+  const fixTx = data.transactions?.fixas     || [];
+  const recTx = data.transactions?.receitas  || [];
+  const contas = JSON.parse(localStorage.getItem('dpv2_contas') || '{"reservaMensal":0,"reservaEmerg":0,"investimentos":0}');
+  const dist   = JSON.parse(localStorage.getItem('dpv2_dist')   || '{"reserva":10,"invest":10}');
+  const fechamentos = JSON.parse(localStorage.getItem('dpv2_fechamentos') || '{}');
+
+  const varMes = varTx.filter(r=>r['MÊS']===mes);
+  const fixMes = fixTx.filter(r=>r['MÊS']===mes);
+  const recMes = recTx.filter(r=>r['MÊS']===mes);
+
+  const receita  = soma(recMes,'VALOR (R$)');
+  const despesas = soma(varMes,'VALOR (R$)') + soma(fixMes,'VALOR (R$)');
+
+  // Saldo anterior
+  const mesIdx = MESES.indexOf(mes);
+  const mesPrev = mesIdx > 0 ? MESES[mesIdx-1] : null;
+  const saldoAnt = mesPrev && fechamentos[mesPrev]?.saldoPassado || 0;
+  const totalDisp = receita + saldoAnt;
+  const saldo = totalDisp - despesas;
+
+  const pctReserva = (dist.reserva||10)/100;
+  const pctInvest  = (dist.invest||10)/100;
+  const poupar  = saldo > 0 ? receita * pctReserva : 0;
+  const investir = saldo > 0 ? receita * pctInvest  : 0;
+
+  const pct = totalDisp > 0 ? Math.min(100, despesas/totalDisp*100) : 0;
+
+  const despD = [...varMes,...fixMes].filter(r=>r['TITULAR']==='Douglas').reduce((s,r)=>s+(parseFloat(r['VALOR (R$)'])||0),0);
+  const despP = [...varMes,...fixMes].filter(r=>r['TITULAR']==='Priscila').reduce((s,r)=>s+(parseFloat(r['VALOR (R$)'])||0),0);
+  const despC = [...varMes,...fixMes].filter(r=>r['TITULAR']==='Casal').reduce((s,r)=>s+(parseFloat(r['VALOR (R$)'])||0),0);
+
+  // Categorias
+  const catMap = {};
+  [...varMes,...fixMes].forEach(r=>{
+    const cat=r['CATEGORIA']||'Outros';
+    catMap[cat]=(catMap[cat]||0)+(parseFloat(r['VALOR (R$)'])||0);
+  });
+  const catSorted = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  // Anual
+  const anuais = MESES.map(m=>{
+    const rec=soma(recTx.filter(r=>r['MÊS']===m),'VALOR (R$)');
+    const des=soma([...varTx,...fixTx].filter(r=>r['MÊS']===m),'VALOR (R$)');
+    return {rec,des,sal:rec-des};
+  });
+
+  document.getElementById('header-sub').textContent = mes+' '+ano;
+  document.getElementById('loading').classList.remove('show');
+
+  const barColor = pct>80?'rgba(255,255,255,0.9)':pct>60?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.9)';
+  const saldoColor = saldo>=0?'#fff':'#FFD166';
+
+  document.getElementById('dash-content').style.display = 'block';
+  document.getElementById('dash-content').innerHTML = `
+
+    ${saldoAnt>0?`<div style="background:var(--blue-l);border:1px solid var(--blue);border-radius:var(--rsm);padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--blue);font-weight:600">💰 Saldo anterior</span>
+      <span style="font-size:14px;font-weight:800;color:var(--blue)">${fmt(saldoAnt)}</span>
+    </div>`:''}
+
+    <div class="saldo-hero">
+      <div class="saldo-hero-label">Saldo do mês</div>
+      <div class="saldo-hero-value" style="color:${saldoColor}">${fmt(saldo)}</div>
+      <div class="saldo-bar-wrap"><div class="saldo-bar" style="width:${pct}%"></div></div>
+      <div class="saldo-bar-label">${pct.toFixed(0)}% comprometido</div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">💵 Receita</div><div class="kpi-value green">${fmt(receita)}</div></div>
+      <div class="kpi"><div class="kpi-label">💸 Despesas</div><div class="kpi-value red">${fmt(despesas)}</div></div>
+      <div class="kpi"><div class="kpi-label">🐷 Guardar (${Math.round(pctReserva*100)}%)</div><div class="kpi-value orange">${fmt(poupar)}</div></div>
+      <div class="kpi"><div class="kpi-label">🎯 Investir (${Math.round(pctInvest*100)}%)</div><div class="kpi-value blue">${fmt(investir)}</div></div>
+    </div>
+
+    <div class="section-label">CONTAS VIRTUAIS</div>
+    <div class="contas-grid">
+      <div class="conta-card"><div class="conta-icon">💧</div><div class="conta-label">Reserva Mensal</div><div class="conta-value" style="color:var(--blue)">${fmt(contas.reservaMensal||0)}</div></div>
+      <div class="conta-card"><div class="conta-icon">🔒</div><div class="conta-label">Reserva Emerg.</div><div class="conta-value" style="color:var(--green)">${fmt(contas.reservaEmerg||0)}</div></div>
+    </div>
+    <div class="kpi" style="margin-bottom:12px"><div class="kpi-label">💰 Investimentos</div><div class="kpi-value orange">${fmt(contas.investimentos||0)}</div></div>
+
+    <div class="section-label">DESPESAS POR TITULAR</div>
+    <div class="split-row">
+      <div class="split-card"><div class="split-name d">👨 Douglas</div><div class="split-value" style="color:var(--blue)">${fmt(despD)}</div></div>
+      <div class="split-card"><div class="split-name p">👩 Priscila</div><div class="split-value" style="color:var(--purple)">${fmt(despP)}</div></div>
+      <div class="split-card"><div class="split-name c">💑 Casal</div><div class="split-value" style="color:var(--green)">${fmt(despC)}</div></div>
+    </div>
+
+    <div class="section-label">EVOLUÇÃO ANUAL ${ano}</div>
+    <div class="chart-card">
+      <div class="chart-title">Receita vs Despesas vs Saldo</div>
+      <div class="chart-wrap"><canvas id="chart-linha"></canvas></div>
+    </div>
+
+    ${catSorted.length?`
+    <div class="section-label">TOP CATEGORIAS — ${mes}</div>
+    <div class="chart-card" style="margin-bottom:12px">
+      <div class="chart-title">Distribuição dos gastos</div>
+      <div class="chart-wrap"><canvas id="chart-pizza"></canvas></div>
+    </div>
+    <div class="table-card">
+      <table>
+        <tr><th>Categoria</th><th class="td-right">Valor</th><th class="td-right">%</th></tr>
+        ${catSorted.map(([cat,val])=>`
+          <tr><td>${cat}</td>
+          <td class="td-right" style="color:var(--red)">${fmt(val)}</td>
+          <td class="td-right"><span class="badge ${val/despesas>.2?'red':val/despesas>.1?'yellow':'green'}">${despesas>0?(val/despesas*100).toFixed(0)+'%':'-'}</span></td></tr>
+        `).join('')}
+      </table>
+    </div>`:''}
+
+    <div class="section-label">RESUMO ANUAL ${ano}</div>
+    <div class="table-card">
+      <table>
+        <tr><th>Mês</th><th class="td-right">Receita</th><th class="td-right">Despesas</th><th class="td-right">Saldo</th></tr>
+        ${MESES.map((m,i)=>{
+          const {rec,des,sal}=anuais[i];
+          const isCur=m===mes;
+          return `<tr style="${isCur?'background:var(--orange-l)':''}">
+            <td style="${isCur?'font-weight:700;color:var(--orange)':''}">${isCur?'→ ':''}${m}</td>
+            <td class="td-right" style="color:var(--green)">${rec>0?fmt(rec):'-'}</td>
+            <td class="td-right" style="color:var(--red)">${des>0?fmt(des):'-'}</td>
+            <td class="td-right" style="color:${sal>=0?'var(--green)':'var(--red)'};font-weight:${isCur?'800':'600'}">${rec>0||des>0?fmt(sal):'-'}</td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div>
+  `;
+
+  // Charts
+  requestAnimationFrame(()=>{
+    // Linha anual
+    const ctxL = document.getElementById('chart-linha');
+    if(ctxL) chartLine = new Chart(ctxL,{
+      type:'line',
+      data:{
+        labels:MESES.map(m=>m.slice(0,3)),
+        datasets:[
+          {label:'Receita',data:anuais.map(d=>d.rec),borderColor:'#2E9E5B',backgroundColor:'rgba(46,158,91,0.08)',tension:.4,pointRadius:3,borderWidth:2,fill:true},
+          {label:'Despesas',data:anuais.map(d=>d.des),borderColor:'#D93025',backgroundColor:'rgba(217,48,37,0.08)',tension:.4,pointRadius:3,borderWidth:2,fill:true},
+          {label:'Saldo',data:anuais.map(d=>d.sal),borderColor:'#F26522',backgroundColor:'transparent',tension:.4,pointRadius:3,borderWidth:2,borderDash:[4,4]},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#888B9E',font:{size:10},boxWidth:10}}},
+        scales:{
+          x:{ticks:{color:'#888B9E',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+          y:{ticks:{color:'#888B9E',font:{size:10},callback:v=>'R$'+Math.abs(v/1000).toFixed(0)+'k'},grid:{color:'rgba(0,0,0,0.05)'}},
+        }
+      }
+    });
+
+    // Pizza categorias
+    const ctxP = document.getElementById('chart-pizza');
+    if(ctxP && catSorted.length) {
+      const colors=['#F26522','#2E9E5B','#2E86C1','#F59E0B','#7D3C98','#D93025','#14B8A6','#EC4899'];
+      chartPizza = new Chart(ctxP,{
+        type:'doughnut',
+        data:{
+          labels:catSorted.map(([c])=>c),
+          datasets:[{data:catSorted.map(([,v])=>v),backgroundColor:colors,borderWidth:0,hoverOffset:4}]
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,cutout:'60%',
+          plugins:{legend:{position:'right',labels:{color:'#888B9E',font:{size:10},boxWidth:10}}}
+        }
+      });
+    }
+  });
+}
+</script>
+</body>
+</html>
