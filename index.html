@@ -1494,18 +1494,28 @@ function renderDashboard() {
 }
 
 function renderFaturasDash() {
-  const hoje = new Date().getDate();
+  // No dashboard só mostra fatura do mês selecionado
   const faturas = calcFaturas(state.selMonth);
   const wrap = document.getElementById('faturas-pendentes-wrap');
   const list = document.getElementById('faturas-pendentes-list');
   if(Object.keys(faturas).length === 0) { wrap.style.display='none'; return; }
   wrap.style.display = 'block';
+
+  const hoje       = new Date();
+  const mesIdx     = MESES.indexOf(state.selMonth);
+  const anoAtual   = hoje.getFullYear();
+
   list.innerHTML = Object.entries(faturas).map(([titular, dados]) => {
     const cfg  = state.vencimentos[titular] || {};
     const venc = cfg.venc || (titular === 'Douglas' ? 10 : 15);
-    const diasRestantes = venc - hoje;
-    const alerta = diasRestantes >= 0 && diasRestantes <= 3;
-    const vencido = diasRestantes < 0;
+
+    // Data real de vencimento da fatura
+    const dataVenc = new Date(anoAtual, mesIdx, venc);
+    const diffMs   = dataVenc - hoje;
+    const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    const vencido  = diasRestantes < 0;
+    const alerta   = !vencido && diasRestantes <= 3;
     const borderStyle = vencido ? 'border-color:var(--red)' : alerta ? 'border-color:var(--yellow)' : '';
     const vencLabel = vencido
       ? `<span style="color:var(--red);font-weight:700">⚠️ Venceu dia ${venc}</span>`
@@ -2165,13 +2175,17 @@ function renderFaturas() {
     list.innerHTML='<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-text">Nenhuma fatura pendente.</div></div>';
     return;
   }
-  const hoje = new Date().getDate();
+  const hoje     = new Date();
+  const anoAtual = hoje.getFullYear();
   list.innerHTML = todasFaturas.map(f => {
-    const cfg2 = state.vencimentos[f.titular] || {};
-    const venc = cfg2.venc || (f.titular === 'Douglas' ? 10 : 15);
-    const diasRestantes = venc - hoje;
-    const alerta = diasRestantes >= 0 && diasRestantes <= 3;
-    const vencido = diasRestantes < 0;
+    const cfg2   = state.vencimentos[f.titular] || {};
+    const venc   = cfg2.venc || (f.titular === 'Douglas' ? 10 : 15);
+    const mesIdx = MESES.indexOf(f.mes);
+    const dataVenc = new Date(anoAtual, mesIdx, venc);
+    const diffMs   = dataVenc - hoje;
+    const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const vencido  = diasRestantes < 0;
+    const alerta   = !vencido && diasRestantes <= 3;
     const borderStyle = vencido ? 'border-color:var(--red)' : alerta ? 'border-color:var(--yellow)' : '';
     const vencLabel = vencido
       ? `<span style="color:var(--red);font-weight:700">⚠️ Venceu dia ${venc}</span>`
