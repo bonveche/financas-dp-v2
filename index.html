@@ -916,7 +916,8 @@ html { height: 100%; overflow: hidden; }
 
       <!-- Faturas -->
       <div id="sub-faturas" class="sub-pane">
-        <div class="card-label" style="margin-bottom:10px">FATURAS DE CARTÃO</div>
+        <div class="card-label" style="margin-bottom:8px">FATURAS DE CARTÃO</div>
+        <div class="month-scroll" id="faturas-month-chips" style="margin:0 -16px 12px;padding:0 16px 8px"></div>
         <div id="faturas-list">
           <div class="empty-state"><div class="empty-icon">💳</div><div class="empty-text">Nenhuma fatura pendente.</div></div>
         </div>
@@ -1312,7 +1313,10 @@ function switchSub(name, btn) {
   btn.classList.add('active');
   if(name==='assinaturas') renderAssinaturas();
   if(name==='distribuicao') carregarDist();
-  if(name==='faturas') renderFaturas();
+  if(name==='faturas') {
+    buildChips('faturas-month-chips', state.selMonth, m => { state.selMonth = m; renderFaturas(); });
+    renderFaturas();
+  }
   if(name==='config') carregarConfig();
 }
 
