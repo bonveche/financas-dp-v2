@@ -971,6 +971,21 @@ html { height: 100%; overflow: hidden; }
           <button class="btn-primary" style="margin-top:10px" onclick="salvarConfig()">Salvar e testar</button>
         </div>
         <div class="config-item">
+          <div class="config-label">💳 Vencimento das faturas</div>
+          <div class="config-desc">Dia do mês em que cada fatura vence.</div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">DOUGLAS</label>
+              <input type="number" class="config-input" id="cfg-venc-d" placeholder="Dia (ex: 10)" min="1" max="31">
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px">PRISCILA</label>
+              <input type="number" class="config-input" id="cfg-venc-p" placeholder="Dia (ex: 15)" min="1" max="31">
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top:10px" onclick="salvarVencimentos()">Salvar vencimentos</button>
+        </div>
+        <div class="config-item">
           <div class="config-label">🔐 Alterar PINs</div>
           <div class="config-desc">PIN padrão: 1234 (Douglas) · 5678 (Priscila)</div>
           <input type="number" class="config-input" id="cfg-pin-d" placeholder="Novo PIN Douglas (4 dígitos)" style="margin-bottom:8px">
@@ -1168,6 +1183,7 @@ const state = {
   fechamentos:  JSON.parse(localStorage.getItem('dpv2_fechamentos')  || '{}'),
   distribuicao: JSON.parse(localStorage.getItem('dpv2_dist')         || '{"salario":0,"despesas":50,"estilo":20,"reserva":10,"emerg":5,"invest":10,"metas":5}'),
   pins:         JSON.parse(localStorage.getItem('dpv2_pins')         || '{"Douglas":"1234","Priscila":"5678"}'),
+  vencimentos:  JSON.parse(localStorage.getItem('dpv2_vencimentos')  || '{"Douglas":10,"Priscila":15}'),
   scriptUrl:    localStorage.getItem('dpv2_script_url') || '',
   _syncInterval: null,
   _pinBuffer:    '',
@@ -1257,6 +1273,7 @@ function switchSub(name, btn) {
   if(name==='assinaturas') renderAssinaturas();
   if(name==='distribuicao') carregarDist();
   if(name==='faturas') renderFaturas();
+  if(name==='config') carregarConfig();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1434,16 +1451,24 @@ function renderFaturasDash() {
   const list = document.getElementById('faturas-pendentes-list');
   if(Object.keys(faturas).length === 0) { wrap.style.display='none'; return; }
   wrap.style.display = 'block';
-  list.innerHTML = Object.entries(faturas).map(([nome, dados]) => {
-    const venc = nome.includes('Douglas') ? 10 : 15;
-    const alerta = hoje >= venc - 3 && hoje <= venc;
-    return `<div class="fatura-card" ${alerta?'style="border-color:var(--yellow)"':''}>
+  list.innerHTML = Object.entries(faturas).map(([titular, dados]) => {
+    const venc = state.vencimentos[titular] || (titular === 'Douglas' ? 10 : 15);
+    const diasRestantes = venc - hoje;
+    const alerta = diasRestantes >= 0 && diasRestantes <= 3;
+    const vencido = diasRestantes < 0;
+    const borderStyle = vencido ? 'border-color:var(--red)' : alerta ? 'border-color:var(--yellow)' : '';
+    const vencLabel = vencido
+      ? `<span style="color:var(--red);font-weight:700">⚠️ Venceu dia ${venc}</span>`
+      : alerta
+        ? `<span style="color:var(--yellow);font-weight:700">⚠️ Vence ${diasRestantes === 0 ? 'hoje' : 'em ' + diasRestantes + ' dia(s)'}</span>`
+        : `<span style="color:var(--muted)">Vence dia ${venc}</span>`;
+    return `<div class="fatura-card" ${borderStyle ? `style="${borderStyle}"` : ''}>
       <div class="fatura-header">
-        <div class="fatura-nome">💳 Fatura ${nome}</div>
+        <div class="fatura-nome">💳 Fatura ${titular}</div>
         <div class="fatura-valor">${fmt(dados.total)}</div>
       </div>
-      <div class="fatura-venc">Vence dia ${venc} · ${dados.itens} lançamento(s)</div>
-      <button class="btn-pagar" onclick="pagarFatura('${nome}','${state.selMonth}')">Confirmar pagamento</button>
+      <div class="fatura-venc">${vencLabel} · ${dados.itens} lançamento(s)</div>
+      <button class="btn-pagar" onclick="pagarFatura('${titular}','${state.selMonth}')">Confirmar pagamento</button>
     </div>`;
   }).join('');
 }
@@ -1452,26 +1477,55 @@ function calcFaturas(mes) {
   const txs = txMes(mes);
   const faturas = {};
   txs.filter(t => (t.forma||'').startsWith('Crédito') && t.tipo !== 'receita' && !t.faturasPaga).forEach(t => {
-    const nome = (t.forma||'').replace('Crédito ','');
-    if(!faturas[nome]) faturas[nome] = {total:0, itens:0};
-    faturas[nome].total += parseFloat(t.valor||0);
-    faturas[nome].itens++;
+    const titular = (t.forma||'').includes('Douglas') ? 'Douglas' : 'Priscila';
+    if(!faturas[titular]) faturas[titular] = {total:0, itens:0};
+    faturas[titular].total += parseFloat(t.valor||0);
+    faturas[titular].itens++;
   });
   return faturas;
 }
 
 function pagarFatura(cartao, mes) {
   if(!confirm(`Confirmar pagamento da fatura ${cartao} de ${mes}?`)) return;
+
+  // Calcula o total da fatura
+  const total = state.transactions
+    .filter(t => t.mes === mes && (t.forma||'').includes(cartao) && t.tipo !== 'receita' && !t.faturasPaga)
+    .reduce((s,t) => s + parseFloat(t.valor||0), 0);
+
   // Marca os lançamentos como pagos
   state.transactions.forEach(t => {
     if(t.mes === mes && (t.forma||'').includes(cartao) && t.tipo !== 'receita') {
       t.faturasPaga = true;
     }
   });
+
+  // Cria lançamento de pagamento da fatura
+  const hoje = new Date();
+  const mesPagamento = MESES[hoje.getMonth()];
+  const tx = {
+    id:         Date.now(),
+    data:       hoje.toISOString().split('T')[0],
+    mes:        mesPagamento,
+    tipo:       'despesa',
+    titular:    cartao,
+    categoria:  'Cartão ' + cartao,
+    valor:      total.toFixed(2),
+    forma:      'Débito',
+    descricao:  'Pagamento fatura ' + cartao,
+    obs:        'Fatura de ' + mes,
+    lancadoPor: state.user,
+    timestamp:  hoje.toISOString(),
+  };
+  state.transactions.push(tx);
+
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
-  showToast('✅ Fatura paga!');
+  showToast('✅ Fatura paga!', 'success');
   renderDashboard();
-  if(state.scriptUrl) syncFaturaSheets(cartao, mes);
+  if(state.scriptUrl) {
+    syncFaturaSheets(cartao, mes);
+    sendToSheets(tx);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1972,8 +2026,8 @@ function renderFaturas() {
   const todasFaturas = [];
   MESES.forEach(mes => {
     const f = calcFaturas(mes);
-    Object.entries(f).forEach(([nome,dados]) => {
-      todasFaturas.push({mes, nome, ...dados});
+    Object.entries(f).forEach(([titular,dados]) => {
+      todasFaturas.push({mes, titular, ...dados});
     });
   });
   if(!todasFaturas.length) {
@@ -1981,13 +2035,21 @@ function renderFaturas() {
     return;
   }
   const hoje = new Date().getDate();
-  list.innerHTML = todasFaturas.map(f=>{
-    const venc = f.nome.includes('Douglas')?10:15;
-    const al = hoje >= venc-3 && hoje <= venc;
-    return `<div class="fatura-card" ${al?'style="border-color:var(--yellow)"':''}>
-      <div class="fatura-header"><div class="fatura-nome">💳 ${f.nome} — ${f.mes}</div><div class="fatura-valor">${fmt(f.total)}</div></div>
-      <div class="fatura-venc">Vence dia ${venc} · ${f.itens} lançamento(s)</div>
-      <button class="btn-pagar" onclick="pagarFatura('${f.nome}','${f.mes}')">Confirmar pagamento</button>
+  list.innerHTML = todasFaturas.map(f => {
+    const venc = state.vencimentos[f.titular] || (f.titular === 'Douglas' ? 10 : 15);
+    const diasRestantes = venc - hoje;
+    const alerta = diasRestantes >= 0 && diasRestantes <= 3;
+    const vencido = diasRestantes < 0;
+    const borderStyle = vencido ? 'border-color:var(--red)' : alerta ? 'border-color:var(--yellow)' : '';
+    const vencLabel = vencido
+      ? `<span style="color:var(--red);font-weight:700">⚠️ Venceu dia ${venc}</span>`
+      : alerta
+        ? `<span style="color:var(--yellow);font-weight:700">⚠️ Vence ${diasRestantes === 0 ? 'hoje' : 'em ' + diasRestantes + ' dia(s)'}</span>`
+        : `<span style="color:var(--muted)">Vence dia ${venc}</span>`;
+    return `<div class="fatura-card" ${borderStyle ? `style="${borderStyle}"` : ''}>
+      <div class="fatura-header"><div class="fatura-nome">💳 Fatura ${f.titular} — ${f.mes}</div><div class="fatura-valor">${fmt(f.total)}</div></div>
+      <div class="fatura-venc">${vencLabel} · ${f.itens} lançamento(s)</div>
+      <button class="btn-pagar" onclick="pagarFatura('${f.titular}','${f.mes}')">Confirmar pagamento</button>
     </div>`;
   }).join('');
 }
@@ -2051,6 +2113,25 @@ function salvarConfig() {
   localStorage.setItem('dpv2_script_url', url);
   showToast(url?'✅ URL salva!':'⚠️ URL removida.');
   if(url) syncFromSheets();
+}
+
+function salvarVencimentos() {
+  const d = parseInt(document.getElementById('cfg-venc-d').value);
+  const p = parseInt(document.getElementById('cfg-venc-p').value);
+  if(!d || d < 1 || d > 31) { showToast('Dia inválido para Douglas!', 'error'); return; }
+  if(!p || p < 1 || p > 31) { showToast('Dia inválido para Priscila!', 'error'); return; }
+  state.vencimentos = { Douglas: d, Priscila: p };
+  localStorage.setItem('dpv2_vencimentos', JSON.stringify(state.vencimentos));
+  showToast('✅ Vencimentos salvos!', 'success');
+}
+
+function carregarConfig() {
+  const url = document.getElementById('cfg-url');
+  if(url) url.value = state.scriptUrl || '';
+  const vd = document.getElementById('cfg-venc-d');
+  const vp = document.getElementById('cfg-venc-p');
+  if(vd) vd.value = state.vencimentos.Douglas  || 10;
+  if(vp) vp.value = state.vencimentos.Priscila || 15;
 }
 
 function salvarPins() {
