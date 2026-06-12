@@ -49,12 +49,12 @@ html { height: 100%; overflow: hidden; }
 
 #app {
   max-width: 480px; margin: 0 auto;
-  height: 100vh; overflow: hidden;
+  height: 100vh; height: 100dvh; overflow: hidden;
   display: flex; flex-direction: column;
   background: var(--bg);
 }
 
-.screen { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+.screen { display: none; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
 .screen.active { display: flex; }
 
 #screen-login {
@@ -66,7 +66,7 @@ html { height: 100%; overflow: hidden; }
 
 #screen-app {
   background: var(--bg); display: flex;
-  flex-direction: column; height: 100vh; overflow: hidden;
+  flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
 }
 .login-logo-wrap { text-align: center; margin-bottom: 40px; }
 .login-coin {
@@ -632,11 +632,6 @@ html { height: 100%; overflow: hidden; }
         <span style="font-size:14px;font-weight:800;color:var(--blue)" id="dash-saldo-anterior">R$ 0,00</span>
       </div>
 
-      <!-- Crédito a pagar (fatura em aberto) -->
-      <div id="credito-aberto-card" style="display:none;background:var(--yellow-l);border:1px solid var(--yellow);border-radius:var(--rsm);padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:#B7791F;font-weight:600">💳 Crédito a pagar (fatura aberta)</span>
-        <span style="font-size:14px;font-weight:800;color:#B7791F" id="dash-credito-aberto">R$ 0,00</span>
-      </div>
 
       <!-- Saldo hero -->
       <div class="saldo-hero">
@@ -656,13 +651,18 @@ html { height: 100%; overflow: hidden; }
           <div class="kpi-label">💸 Despesas</div>
           <div class="kpi-value red" id="dash-despesas">R$ 0,00</div>
         </div>
-        <div class="kpi">
-          <div class="kpi-label" id="dash-poupar-label">🐷 Guardar</div>
-          <div class="kpi-value orange" id="dash-poupar">R$ 0,00</div>
+      </div>
+
+      <!-- Sugestão guardar/investir -->
+      <div id="dash-sugestao" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">💡 SUGESTÃO DO MÊS</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:13px;color:var(--text)">🐷 Guardar (Reserva Mensal)</span>
+          <span style="font-size:13px;font-weight:800;color:var(--orange)" id="dash-sug-guardar">R$ 0,00</span>
         </div>
-        <div class="kpi">
-          <div class="kpi-label" id="dash-investir-label">🎯 Investir</div>
-          <div class="kpi-value blue" id="dash-investir">R$ 0,00</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--text)">📈 Investir</span>
+          <span style="font-size:13px;font-weight:800;color:var(--blue)" id="dash-sug-investir">R$ 0,00</span>
         </div>
       </div>
 
@@ -1356,20 +1356,27 @@ function getSaldoAnterior(mes) {
 // ══════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════
-function calcGuardar(txs)    { return txs.filter(t=>t.tipo==='reserva').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
-function calcInvestirTxs(txs){ return txs.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+parseFloat(t.valor||0),0); }
-function calcCreditoAberto(txs){ return txs.filter(t=>t.tipo!=='receita'&&isCredito(t)&&!t.faturasPaga).reduce((s,t)=>s+parseFloat(t.valor||0),0); }
-
 function renderDashboard() {
   const txs           = txMes(state.selMonth);
   const receita       = calcReceita(txs);
   const despesas      = calcDespesas(txs);
-  const guardar       = calcGuardar(txs);
-  const investirVal   = calcInvestirTxs(txs);
-  const creditoAberto = calcCreditoAberto(txs);
   const saldoAnterior = getSaldoAnterior(state.selMonth);
   const totalDisponivel = receita + saldoAnterior;
   const saldo         = totalDisponivel - despesas;
+
+  // Sugestão baseada na distribuição (só mostra se saldo > 0)
+  const dist = state.distribuicao;
+  const sugGuardar  = saldo > 0 ? receita * (dist.reserva||10) / 100 : 0;
+  const sugInvestir = saldo > 0 ? receita * (dist.invest||10)  / 100 : 0;
+
+  // Contas virtuais calculadas de todos os lançamentos (acumulado histórico)
+  const todasTxs = state.transactions;
+  const reservaMensal = todasTxs.filter(t=>t.tipo==='reserva').reduce((s,t)=>s+parseFloat(t.valor||0),0)
+    + (state.fechamentos ? Object.values(state.fechamentos).reduce((s,f)=>s+(f.reserva||0),0) : 0);
+  const reservaEmerg  = todasTxs.filter(t=>t.tipo==='emergencia').reduce((s,t)=>s+parseFloat(t.valor||0),0)
+    + (state.fechamentos ? Object.values(state.fechamentos).reduce((s,f)=>s+(f.emerg||0),0) : 0);
+  const investimentos = todasTxs.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+parseFloat(t.valor||0),0)
+    + (state.fechamentos ? Object.values(state.fechamentos).reduce((s,f)=>s+(f.invest||0),0) : 0);
 
   document.getElementById('dash-title').textContent = state.selMonth + ' ' + ANO_ATUAL;
   document.getElementById('dash-sub').textContent = txs.length + ' lançamentos · ' + (saldo >= 0 ? '✅ Positivo' : '⚠️ Negativo');
@@ -1380,13 +1387,6 @@ function renderDashboard() {
     saCard.style.display = 'flex';
     document.getElementById('dash-saldo-anterior').textContent = fmt(saldoAnterior);
   } else { saCard.style.display = 'none'; }
-
-  // Crédito aberto (ainda não pago)
-  const creditoCard = document.getElementById('credito-aberto-card');
-  if(creditoAberto > 0) {
-    creditoCard.style.display = 'flex';
-    document.getElementById('dash-credito-aberto').textContent = fmt(creditoAberto);
-  } else { creditoCard.style.display = 'none'; }
 
   // Saldo hero
   document.getElementById('dash-saldo').textContent = fmt(saldo);
@@ -1399,15 +1399,15 @@ function renderDashboard() {
   // KPIs
   document.getElementById('dash-receita').textContent  = fmt(receita);
   document.getElementById('dash-despesas').textContent = fmt(despesas);
-  document.getElementById('dash-poupar-label').textContent  = '🐷 Guardar';
-  document.getElementById('dash-investir-label').textContent = '📈 Investir';
-  document.getElementById('dash-poupar').textContent  = fmt(guardar);
-  document.getElementById('dash-investir').textContent = fmt(investirVal);
 
-  // Contas virtuais
-  document.getElementById('dash-reserva-mensal').textContent = fmt(state.contas.reservaMensal||0);
-  document.getElementById('dash-reserva-emerg').textContent  = fmt(state.contas.reservaEmerg||0);
-  document.getElementById('dash-investimentos').textContent  = fmt(state.contas.investimentos||0);
+  // Sugestão
+  document.getElementById('dash-sug-guardar').textContent  = fmt(sugGuardar);
+  document.getElementById('dash-sug-investir').textContent = fmt(sugInvestir);
+
+  // Contas virtuais (calculadas dos lançamentos + fechamentos)
+  document.getElementById('dash-reserva-mensal').textContent = fmt(reservaMensal);
+  document.getElementById('dash-reserva-emerg').textContent  = fmt(reservaEmerg);
+  document.getElementById('dash-investimentos').textContent  = fmt(investimentos);
 
   // Por titular
   document.getElementById('dash-desp-d').textContent = fmt(calcByOwner(txs,'Douglas'));
@@ -1658,29 +1658,6 @@ async function salvarLancamento() {
     lancadoPor: state.user,
     timestamp:  new Date().toISOString(),
   };
-
-  // Se é "Reserva Mensal" como forma de pagamento, abate da conta
-  if(forma === 'Reserva Mensal' && state.tipo !== 'receita') {
-    if(state.contas.reservaMensal < val) {
-      showToast('⚠️ Saldo insuficiente na Reserva Mensal!', 'error'); return;
-    }
-    state.contas.reservaMensal -= val;
-    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
-  }
-
-  // Atualiza contas virtuais conforme tipo
-  if(state.tipo === 'investimento') {
-    state.contas.investimentos = (state.contas.investimentos||0) + val;
-    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
-  }
-  if(state.tipo === 'reserva') {
-    state.contas.reservaMensal = (state.contas.reservaMensal||0) + val;
-    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
-  }
-  if(state.tipo === 'emergencia') {
-    state.contas.reservaEmerg = (state.contas.reservaEmerg||0) + val;
-    localStorage.setItem('dpv2_contas', JSON.stringify(state.contas));
-  }
 
   state.transactions.push(tx);
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
