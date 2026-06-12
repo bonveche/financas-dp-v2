@@ -2191,48 +2191,58 @@ function renderFaturas() {
 // ══════════════════════════════════════════════════════════
 function carregarDist() {
   const d = state.distribuicao;
-  document.getElementById('dist-salario').value = d.salario||'';
-  document.getElementById('pct-despesas').value = d.despesas||50;
-  document.getElementById('pct-estilo').value   = d.estilo||20;
-  document.getElementById('pct-reserva').value  = d.reserva||10;
-  document.getElementById('pct-emerg').value    = d.emerg||5;
-  document.getElementById('pct-invest').value   = d.invest||10;
-  document.getElementById('pct-metas').value    = d.metas||5;
+  document.getElementById('dist-salario').value  = d.salario  ?? '';
+  document.getElementById('pct-despesas').value  = d.despesas ?? 50;
+  document.getElementById('pct-estilo').value    = d.estilo   ?? 20;
+  document.getElementById('pct-reserva').value   = d.reserva  ?? 10;
+  document.getElementById('pct-emerg').value     = d.emerg    ?? 5;
+  document.getElementById('pct-invest').value    = d.invest   ?? 10;
+  document.getElementById('pct-metas').value     = d.metas    ?? 5;
   calcDist();
 }
 
 function calcDist() {
-  const sal = parseFloat(document.getElementById('dist-salario').value)||0;
+  const sal  = parseFloat(document.getElementById('dist-salario').value) || 0;
   const pcts = ['despesas','estilo','reserva','emerg','invest','metas'];
-  const total = pcts.reduce((s,k)=>s+(parseFloat(document.getElementById('pct-'+k).value)||0),0);
-  pcts.forEach(k=>{
-    const pct = parseFloat(document.getElementById('pct-'+k).value)||0;
-    document.getElementById('val-'+k).textContent = fmt(sal*pct/100);
+  const total = pcts.reduce((s,k) => s + (parseFloat(document.getElementById('pct-'+k).value) || 0), 0);
+
+  // Atualiza valores em R$
+  pcts.forEach(k => {
+    const pct = parseFloat(document.getElementById('pct-'+k).value) || 0;
+    const el  = document.getElementById('val-'+k) || document.getElementById('val-'+k+'-d');
+    if(el) el.textContent = sal > 0 ? fmt(sal * pct / 100) : 'R$ —';
   });
+
+  // Barra e totalizador
   const bar   = document.getElementById('dist-bar');
   const pctEl = document.getElementById('dist-total-pct');
   const aviso = document.getElementById('dist-aviso');
-  if(bar) bar.style.width=Math.min(100,total)+'%';
-  if(bar) bar.style.background=total>100?'var(--red)':total===100?'var(--green)':'var(--yellow)';
-  if(pctEl) { pctEl.textContent=total+'%'; pctEl.style.color=total>100?'var(--red)':total===100?'var(--green)':'var(--yellow)'; }
-  if(aviso) aviso.textContent=total>100?'⚠️ Total acima de 100%':total===100?'✅ Distribuição equilibrada!':'💡 Faltam '+(100-total)+'% para distribuir';
+  const cor   = total > 100 ? 'var(--red)' : total === 100 ? 'var(--green)' : 'var(--yellow)';
+  if(bar)   { bar.style.width = Math.min(100, total) + '%'; bar.style.background = cor; }
+  if(pctEl) { pctEl.textContent = total + '%'; pctEl.style.color = cor; }
+  if(aviso) aviso.textContent = total > 100
+    ? '⚠️ Total acima de 100%'
+    : total === 100
+      ? '✅ Distribuição equilibrada!'
+      : '💡 Faltam ' + (100 - total) + '% para distribuir';
 }
 
 function salvarDist() {
-  const sal = parseFloat(document.getElementById('dist-salario').value)||0;
-  const total = ['despesas','estilo','reserva','emerg','invest','metas'].reduce((s,k)=>s+(parseFloat(document.getElementById('pct-'+k).value)||0),0);
-  if(total!==100) { showToast('Total deve ser 100%!','error'); return; }
+  const sal   = parseFloat(document.getElementById('dist-salario').value) || 0;
+  const pcts  = ['despesas','estilo','reserva','emerg','invest','metas'];
+  const total = pcts.reduce((s,k) => s + (parseFloat(document.getElementById('pct-'+k).value) || 0), 0);
+  if(total !== 100) { showToast('Total deve ser 100%!', 'error'); return; }
   state.distribuicao = {
-    salario:sal,
-    despesas:parseFloat(document.getElementById('pct-despesas').value)||0,
-    estilo:  parseFloat(document.getElementById('pct-estilo').value)||0,
-    reserva: parseFloat(document.getElementById('pct-reserva').value)||0,
-    emerg:   parseFloat(document.getElementById('pct-emerg').value)||0,
-    invest:  parseFloat(document.getElementById('pct-invest').value)||0,
-    metas:   parseFloat(document.getElementById('pct-metas').value)||0,
+    salario:  sal,
+    despesas: parseFloat(document.getElementById('pct-despesas').value) ?? 0,
+    estilo:   parseFloat(document.getElementById('pct-estilo').value)   ?? 0,
+    reserva:  parseFloat(document.getElementById('pct-reserva').value)  ?? 0,
+    emerg:    parseFloat(document.getElementById('pct-emerg').value)    ?? 0,
+    invest:   parseFloat(document.getElementById('pct-invest').value)   ?? 0,
+    metas:    parseFloat(document.getElementById('pct-metas').value)    ?? 0,
   };
   localStorage.setItem('dpv2_dist', JSON.stringify(state.distribuicao));
-  showToast('✅ Distribuição salva!','success');
+  showToast('✅ Distribuição salva!', 'success');
   renderDashboard();
 }
 
