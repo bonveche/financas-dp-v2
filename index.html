@@ -1343,7 +1343,13 @@ function initApp() {
   if(fValor) fValor.addEventListener('input', atualizarPreviewParcela);
   if(fParc)  fParc.addEventListener('change', atualizarPreviewParcela);
 
-  buildChips('dash-month-chips', state.selMonth, m=>{state.selMonth=m;renderDashboard();});
+  buildChips('dash-month-chips', state.selMonth, m => {
+    state.selMonth = m;
+    renderDashboard();
+    // Re-renderiza aba ativa se depende do mês
+    const subAtivo = document.querySelector('.sub-pane.active');
+    if(subAtivo && subAtivo.id === 'sub-faturas') renderFaturas();
+  });
   buildChips('hist-chips', state.histMonth, m=>{state.histMonth=m;renderHistorico();});
 
   verificarAssinaturasVencendo();
@@ -2164,23 +2170,17 @@ function renderAssinaturas() {
 function renderFaturas() {
   const list = document.getElementById('faturas-list');
   if(!list) return;
-  const todasFaturas = [];
-  MESES.forEach(mes => {
-    const f = calcFaturas(mes);
-    Object.entries(f).forEach(([titular,dados]) => {
-      todasFaturas.push({mes, titular, ...dados});
-    });
-  });
-  if(!todasFaturas.length) {
-    list.innerHTML='<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-text">Nenhuma fatura pendente.</div></div>';
+  const faturas = calcFaturas(state.selMonth);
+  if(!Object.keys(faturas).length) {
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-text">Nenhuma fatura pendente em '+state.selMonth+'.</div></div>';
     return;
   }
   const hoje     = new Date();
   const anoAtual = hoje.getFullYear();
-  list.innerHTML = todasFaturas.map(f => {
-    const cfg2   = state.vencimentos[f.titular] || {};
-    const venc   = cfg2.venc || (f.titular === 'Douglas' ? 10 : 15);
-    const mesIdx = MESES.indexOf(f.mes);
+  const mesIdx   = MESES.indexOf(state.selMonth);
+  list.innerHTML = Object.entries(faturas).map(([titular, dados]) => {
+    const cfg2   = state.vencimentos[titular] || {};
+    const venc   = cfg2.venc || (titular === 'Douglas' ? 10 : 15);
     const dataVenc = new Date(anoAtual, mesIdx, venc);
     const diffMs   = dataVenc - hoje;
     const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -2193,9 +2193,9 @@ function renderFaturas() {
         ? `<span style="color:var(--yellow);font-weight:700">⚠️ Vence ${diasRestantes === 0 ? 'hoje' : 'em ' + diasRestantes + ' dia(s)'}</span>`
         : `<span style="color:var(--muted)">Vence dia ${venc}</span>`;
     return `<div class="fatura-card" ${borderStyle ? `style="${borderStyle}"` : ''}>
-      <div class="fatura-header"><div class="fatura-nome">💳 Fatura ${f.titular} — ${f.mes}</div><div class="fatura-valor">${fmt(f.total)}</div></div>
-      <div class="fatura-venc">${vencLabel} · ${f.itens} lançamento(s)</div>
-      <button class="btn-pagar" onclick="pagarFatura('${f.titular}','${f.mes}')">Confirmar pagamento</button>
+      <div class="fatura-header"><div class="fatura-nome">💳 Fatura ${titular} — ${state.selMonth}</div><div class="fatura-valor">${fmt(dados.total)}</div></div>
+      <div class="fatura-venc">${vencLabel} · ${dados.itens} lançamento(s)</div>
+      <button class="btn-pagar" onclick="pagarFatura('${titular}','${state.selMonth}')">Confirmar pagamento</button>
     </div>`;
   }).join('');
 }
