@@ -1222,7 +1222,7 @@ const state = {
   distribuicao: JSON.parse(localStorage.getItem('dpv2_dist')         || '{"salario":0,"despesas":50,"estilo":20,"reserva":10,"emerg":5,"invest":10,"metas":5}'),
   pins:         JSON.parse(localStorage.getItem('dpv2_pins')         || '{"Douglas":"1234","Priscila":"5678"}'),
   vencimentos:  JSON.parse(localStorage.getItem('dpv2_vencimentos')  || '{"Douglas":{"venc":10,"fech":4},"Priscila":{"venc":15,"fech":4}}'),
-  categorias:   JSON.parse(localStorage.getItem('dpv2_categorias')   || '{"despesa":[],"fixa":[],"receita":[]}'),
+  deletedIds:   new Set(JSON.parse(localStorage.getItem('dpv2_deleted_ids') || '[]')),
   scriptUrl:    localStorage.getItem('dpv2_script_url')      || '',
   planilhaUrl:  localStorage.getItem('dpv2_planilha_url')    || '',
   dashboardUrl: localStorage.getItem('dpv2_dashboard_url')   || '',
@@ -1865,11 +1865,15 @@ async function salvarLancamento() {
 
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  // Envia para Sheets
+  // Envia para Sheets — principal + parcelas se houver
   if(state.scriptUrl) {
     const btn = document.getElementById('btn-salvar');
     btn.textContent = 'Enviando…'; btn.disabled = true;
     await sendToSheets(tx);
+    // Envia faturaItems (parcelas) para o Sheets também, para poder excluir depois
+    if(isCredito && parcTxs && parcTxs.length) {
+      for(const p of parcTxs) await sendToSheets(p);
+    }
     btn.textContent = 'Salvar lançamento'; btn.disabled = false;
   }
 
@@ -1933,9 +1937,13 @@ function txCard(t, showDel=false) {
 
 async function excluirLancamento(id) {
   if(!confirm('Excluir este lançamento? Será removido do app e da planilha.')) return;
-  const tx = state.transactions.find(t=>String(t.id)===String(id));
 
-  // Remove o lançamento principal E todos os faturaItems vinculados a ele
+  // Coleta IDs dos faturaItems vinculados antes de remover
+  const faturaItemIds = state.transactions
+    .filter(t => String(t.parcelaRef) === String(id))
+    .map(t => t.id);
+
+  // Remove o lançamento principal E todos os faturaItems vinculados
   state.transactions = state.transactions.filter(t =>
     String(t.id) !== String(id) && String(t.parcelaRef) !== String(id)
   );
@@ -1946,7 +1954,19 @@ async function excluirLancamento(id) {
   renderDashboard();
   renderHistorico();
   showToast('🗑 Lançamento excluído.');
-  if(state.scriptUrl) fetch(state.scriptUrl+'?action=delete&id='+id,{mode:'no-cors'});
+
+  // Registra IDs excluídos para não voltarem na sincronização
+  state.deletedIds.add(String(id));
+  faturaItemIds.forEach(fid => state.deletedIds.add(String(fid)));
+  localStorage.setItem('dpv2_deleted_ids', JSON.stringify([...state.deletedIds]));
+
+  // Exclui da planilha — principal + todos os faturaItems
+  if(state.scriptUrl) {
+    fetch(state.scriptUrl+'?action=delete&id='+id, {mode:'no-cors'});
+    faturaItemIds.forEach(fid => {
+      fetch(state.scriptUrl+'?action=delete&id='+fid, {mode:'no-cors'});
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2018,6 +2038,7 @@ function excluirMeta(id) {
   state.metas = state.metas.filter(m=>m.id!==id);
   localStorage.setItem('dpv2_metas', JSON.stringify(state.metas));
   renderMetas();
+  renderDashboard();
   showToast('Meta excluída.');
   if(state.scriptUrl) fetch(state.scriptUrl+'?action=deleteMeta&id='+id,{mode:'no-cors'});
 }
@@ -2460,10 +2481,14 @@ async function syncFromSheets() {
     (data.transactions?.receitas ||[]).forEach(r=>txs.push(mapRow(r,'receita')));
     txs.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
 
-    // Mescla com dados locais
+    // Mescla com dados locais — ignora IDs excluídos
     const sheetsIds = new Set(txs.map(t=>String(t.id)));
-    const localOnly = state.transactions.filter(t=>!sheetsIds.has(String(t.id)));
-    state.transactions = [...txs,...localOnly].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+    const localOnly = state.transactions.filter(t =>
+      !sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))
+    );
+    // Filtra lançamentos do Sheets que foram excluídos localmente
+    const txsFiltrados = txs.filter(t => !state.deletedIds.has(String(t.id)));
+    state.transactions = [...txsFiltrados, ...localOnly].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
     localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
     if((data.metas?.length||0)>0) {
