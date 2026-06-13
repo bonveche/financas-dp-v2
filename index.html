@@ -68,6 +68,11 @@ html { height: 100%; overflow: hidden; }
   background: var(--bg); display: flex;
   flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
 }
+
+#screen-rapido {
+  background: var(--bg); display: flex;
+  flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
+}
 .login-logo-wrap { text-align: center; margin-bottom: 40px; }
 .login-coin {
   width: 80px; height: 80px; background: rgba(255,255,255,0.2);
@@ -534,20 +539,34 @@ html { height: 100%; overflow: hidden; }
   </div>
 
   <div class="login-card">
-    <div class="login-card-title">Quem vai entrar?</div>
-    <div class="user-btns">
-      <div class="user-btn" id="btn-user-d" onclick="selecionarUsuario('Douglas')">
-        <div class="user-avatar d">D</div>
-        <div class="user-name">Douglas</div>
+    <!-- Passo 1: Usuário + Modo -->
+    <div id="login-step1">
+      <div class="login-card-title">Quem vai entrar?</div>
+      <div class="user-btns">
+        <div class="user-btn" id="btn-user-d" onclick="selecionarUsuario('Douglas')">
+          <div class="user-avatar d">D</div>
+          <div class="user-name">Douglas</div>
+        </div>
+        <div class="user-btn" id="btn-user-p" onclick="selecionarUsuario('Priscila')">
+          <div class="user-avatar p">P</div>
+          <div class="user-name">Priscila</div>
+        </div>
       </div>
-      <div class="user-btn" id="btn-user-p" onclick="selecionarUsuario('Priscila')">
-        <div class="user-avatar p">P</div>
-        <div class="user-name">Priscila</div>
+
+      <div id="login-modo-wrap" style="display:none;margin-top:16px">
+        <div class="login-card-title" style="margin-bottom:12px">Como vai entrar?</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="selecionarModo('rapido')" id="btn-modo-rapido"
+            style="flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">🚀 Rápido</button>
+          <button onclick="selecionarModo('completo')" id="btn-modo-completo"
+            style="flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">📱 Completo</button>
+        </div>
       </div>
     </div>
 
+    <!-- Passo 2: PIN -->
     <div class="pin-wrap" id="pin-wrap">
-      <div class="pin-label">Digite seu PIN</div>
+      <div class="pin-label" id="pin-label-modo">Digite seu PIN</div>
       <div class="pin-dots" id="pin-dots">
         <div class="pin-dot" id="dot-0"></div>
         <div class="pin-dot" id="dot-1"></div>
@@ -566,14 +585,10 @@ html { height: 100%; overflow: hidden; }
         <div class="pin-key" onclick="pinPress('9')">9</div>
         <div class="pin-key del" onclick="pinDel()">⌫</div>
         <div class="pin-key" onclick="pinPress('0')">0</div>
-        <div class="pin-key enter" onclick="pinDel()">⌫</div>
+        <div class="pin-key enter" onclick="doLogin()">→</div>
       </div>
       <div class="pin-error" id="pin-error">PIN incorreto. Tente novamente.</div>
-      <!-- Botões de modo -->
-      <div style="display:flex;gap:10px;margin-top:16px">
-        <button onclick="doLogin('rapido')" style="flex:1;padding:14px;border:2px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">🚀 Rápido</button>
-        <button onclick="doLogin('completo')" style="flex:1;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">📱 Completo</button>
-      </div>
+      <button onclick="voltarStep1()" style="margin-top:12px;background:none;border:none;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer">← Voltar</button>
     </div>
   </div>
 </div>
@@ -1306,6 +1321,7 @@ const state = {
   _syncInterval: null,
   _pinBuffer:    '',
   _selectedUser: null,
+  _loginModo:    null,
 };
 
 // ══════════════════════════════════════════════════════════
@@ -1316,9 +1332,35 @@ function selecionarUsuario(nome) {
   state._pinBuffer = '';
   document.querySelectorAll('.user-btn').forEach(b => b.className = 'user-btn');
   document.getElementById('btn-user-' + nome[0].toLowerCase()).className = 'user-btn selected-' + nome[0].toLowerCase();
-  document.getElementById('pin-wrap').classList.add('show');
-  atualizarDots();
+  document.getElementById('login-modo-wrap').style.display = 'block';
+  document.getElementById('pin-wrap').classList.remove('show');
   document.getElementById('pin-error').style.display = 'none';
+  atualizarDots();
+}
+
+function selecionarModo(modo) {
+  state._loginModo = modo;
+  // Destaca botão selecionado
+  const onStyle  = 'flex:1;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer';
+  const offStyle = 'flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer';
+  document.getElementById('btn-modo-rapido').style.cssText   = modo === 'rapido'   ? onStyle : offStyle;
+  document.getElementById('btn-modo-completo').style.cssText = modo === 'completo' ? onStyle : offStyle;
+  // Mostra PIN
+  document.getElementById('pin-label-modo').textContent = modo === 'rapido' ? '🚀 Rápido — Digite seu PIN' : '📱 Completo — Digite seu PIN';
+  document.getElementById('pin-wrap').classList.add('show');
+  document.getElementById('pin-error').style.display = 'none';
+  state._pinBuffer = '';
+  atualizarDots();
+}
+
+function voltarStep1() {
+  document.getElementById('pin-wrap').classList.remove('show');
+  state._loginModo = null;
+  state._pinBuffer = '';
+  atualizarDots();
+  const offStyle = 'flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer';
+  document.getElementById('btn-modo-rapido').style.cssText   = offStyle;
+  document.getElementById('btn-modo-completo').style.cssText = offStyle;
 }
 
 function pinPress(d) {
@@ -1339,12 +1381,13 @@ function atualizarDots() {
 }
 
 function doLogin(modo) {
-  if(!state._selectedUser) return;
+  const m = modo || state._loginModo;
+  if(!state._selectedUser || !m) return;
   if(state._pinBuffer.length < 4) return;
   if(state._pinBuffer === state.pins[state._selectedUser]) {
     state.user = state._selectedUser;
     document.getElementById('pin-error').style.display = 'none';
-    if(modo === 'rapido') {
+    if(m === 'rapido') {
       initRapido();
     } else {
       showScreen('screen-app');
@@ -1442,9 +1485,11 @@ function logout() {
   state.user = null;
   state._pinBuffer = '';
   state._selectedUser = null;
+  state._loginModo = null;
   if(state._syncInterval) clearInterval(state._syncInterval);
   document.querySelectorAll('.user-btn').forEach(b => b.className = 'user-btn');
   document.getElementById('pin-wrap').classList.remove('show');
+  document.getElementById('login-modo-wrap').style.display = 'none';
   atualizarDots();
   showScreen('screen-login');
 }
