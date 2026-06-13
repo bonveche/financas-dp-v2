@@ -996,7 +996,10 @@ html { height: 100%; overflow: hidden; }
           <button class="btn-primary" style="margin-top:10px;background:var(--purple)" onclick="salvarPins()">Salvar PINs</button>
         </div>
         <div class="config-item">
-          <div class="config-label">📤 Exportar lançamentos</div>
+          <div class="config-label">🗑 Limpar lista de excluídos</div>
+          <div class="config-desc">Se lançamentos da planilha não aparecem no app, use este botão para limpar o cache de exclusões.</div>
+          <button class="btn-primary" style="margin-top:10px;background:#888" onclick="limparExcluidos()">Limpar e sincronizar</button>
+        </div>
           <div class="config-desc">Gera um arquivo JSON com todos os lançamentos.</div>
           <button class="btn-primary" style="margin-top:10px" onclick="exportarLancamentos()">Exportar JSON</button>
         </div>
@@ -2300,6 +2303,13 @@ function salvarDist() {
 // ══════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════
+function limparExcluidos() {
+  state.deletedIds = new Set();
+  localStorage.removeItem('dpv2_deleted_ids');
+  showToast('✅ Lista limpa! Sincronizando…', 'success');
+  syncFromSheets();
+}
+
 function exportarLancamentos() {
   const txs = state.transactions.filter(t => !t.faturaItem);
   const dados = {
@@ -2555,15 +2565,17 @@ async function syncFromSheets() {
     (data.transactions?.receitas ||[]).forEach(r=>txs.push(mapRow(r,'receita')));
     txs.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
 
-    // Mescla com dados locais — ignora IDs excluídos
-    const sheetsIds = new Set(txs.map(t=>String(t.id)));
-    const localOnly = state.transactions.filter(t =>
-      !sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))
-    );
-    // Filtra lançamentos do Sheets que foram excluídos localmente
-    const txsFiltrados = txs.filter(t => !state.deletedIds.has(String(t.id)));
-    state.transactions = [...txsFiltrados, ...localOnly].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
-    localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+    // Só mescla se o Sheets retornou dados OU se o app local está vazio
+    // Evita apagar dados locais quando Sheets retorna vazio por erro
+    if(txs.length > 0 || state.transactions.length === 0) {
+      const sheetsIds = new Set(txs.map(t=>String(t.id)));
+      const localOnly = state.transactions.filter(t =>
+        !sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))
+      );
+      const txsFiltrados = txs.filter(t => !state.deletedIds.has(String(t.id)));
+      state.transactions = [...txsFiltrados, ...localOnly].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+      localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+    }
 
     if((data.metas?.length||0)>0) {
       state.metas = data.metas.map(r=>({
