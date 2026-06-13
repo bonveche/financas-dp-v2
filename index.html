@@ -1448,18 +1448,23 @@ async function salvarRapido() {
   const val = parseFloat(document.getElementById('r-valor').value);
   if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
 
-  const hoje = new Date();
-  const data = hoje.toISOString().split('T')[0];
-  const mes  = MESES[hoje.getMonth()];
+  const hoje     = new Date();
+  const data     = hoje.toISOString().split('T')[0];
+  const mes      = MESES[hoje.getMonth()];
+  const isCredito = _rTipo !== 'receita' && _rForma === 'Crédito';
+  const titular  = _rTitular || state.user;
+  // Para crédito, usa o nome do titular no campo forma
+  const formaFinal = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + titular) : _rForma;
+
   const tx = {
     id:         Date.now(),
     data,
     mes,
     tipo:       _rTipo,
-    titular:    _rTitular || state.user,
+    titular,
     categoria:  'Lançamento Rápido',
     valor:      val.toFixed(2),
-    forma:      _rTipo === 'receita' ? '—' : _rForma,
+    forma:      formaFinal,
     descricao:  'Lançamento Rápido',
     obs:        '',
     lancadoPor: state.user,
@@ -1467,8 +1472,32 @@ async function salvarRapido() {
   };
 
   state.transactions.push(tx);
-  localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
+  // Se crédito, cria faturaItem no mês correto
+  if(isCredito) {
+    const mesFaturaDate = calcMesFatura(titular, hoje);
+    const mesFatura = MESES[mesFaturaDate.getMonth()];
+    const faturaItem = {
+      id:         Date.now() + 1,
+      data,
+      mes:        mesFatura,
+      tipo:       'despesa',
+      titular,
+      categoria:  'Lançamento Rápido',
+      valor:      val.toFixed(2),
+      forma:      formaFinal,
+      descricao:  'Lançamento Rápido — parcela 1/1',
+      obs:        '',
+      lancadoPor: state.user,
+      timestamp:  hoje.toISOString(),
+      parcelaRef: tx.id,
+      faturaItem: true,
+    };
+    state.transactions.push(faturaItem);
+    if(state.scriptUrl) sendToSheets(faturaItem);
+  }
+
+  localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
   showToast('✅ Lançamento salvo!', 'success');
   document.getElementById('r-valor').value = '';
 
