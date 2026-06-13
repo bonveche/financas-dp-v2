@@ -1002,7 +1002,7 @@ html { height: 100%; overflow: hidden; }
         </div>
         <div class="config-item">
           <div class="config-label">📥 Importar lançamentos</div>
-          <div class="config-desc">Importa lançamentos de um arquivo JSON exportado pelo v1 ou v2.</div>
+          <div class="config-desc">Importa lançamentos de um arquivo JSON e sincroniza com a planilha.</div>
           <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarLancamentos(this)">
           <button class="btn-primary" style="margin-top:10px;background:var(--blue)" onclick="document.getElementById('import-file').click()">Selecionar arquivo JSON</button>
         </div>
@@ -1878,7 +1878,19 @@ async function salvarLancamento() {
 
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  // Reset form e navega imediatamente — não espera o Sheets
+  // Envia para Sheets — principal + parcelas se houver
+  if(state.scriptUrl) {
+    const btn = document.getElementById('btn-salvar');
+    btn.textContent = 'Enviando…'; btn.disabled = true;
+    await sendToSheets(tx);
+    // Envia faturaItems (parcelas) para o Sheets também, para poder excluir depois
+    if(isCredito && parcTxs && parcTxs.length) {
+      for(const p of parcTxs) await sendToSheets(p);
+    }
+    btn.textContent = 'Salvar lançamento'; btn.disabled = false;
+  }
+
+  // Reset form
   document.getElementById('f-valor').value = '';
   document.getElementById('f-descricao').value = '';
   document.getElementById('f-obs').value = '';
@@ -1890,27 +1902,7 @@ async function salvarLancamento() {
   state.selMonth = mesLancamento;
   buildChips('dash-month-chips', mesLancamento, m=>{state.selMonth=m;renderDashboard();});
   switchTab('dashboard', document.querySelector('.tab-btn'));
-
-  // Envia para Sheets em background — não bloqueia o app
-  if(state.scriptUrl) {
-    const btn = document.getElementById('btn-salvar');
-    if(btn) { btn.textContent = 'Enviando…'; btn.disabled = true; }
-    const timeout = new Promise(res => setTimeout(res, 8000));
-    Promise.race([
-      (async () => {
-        await sendToSheets(tx);
-        if(isCredito && parcTxs && parcTxs.length) {
-          for(const p of parcTxs) await sendToSheets(p);
-        }
-      })(),
-      timeout
-    ]).finally(() => {
-      if(btn) { btn.textContent = 'Salvar lançamento'; btn.disabled = false; }
-      setTimeout(syncFromSheets, 3000);
-    });
-  } else {
-    setTimeout(syncFromSheets, 5000);
-  }
+  setTimeout(syncFromSheets, 5000);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2309,15 +2301,13 @@ function salvarDist() {
 // CONFIG
 // ══════════════════════════════════════════════════════════
 function exportarLancamentos() {
-  // Exporta só lançamentos reais — sem faturaItems internos
   const txs = state.transactions.filter(t => !t.faturaItem);
   const dados = {
     versao: 'v2',
     exportadoEm: new Date().toISOString(),
     transactions: txs
   };
-  const json = JSON.stringify(dados, null, 2);
-  const blob = new Blob([json], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(dados, null, 2)], {type: 'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
@@ -2327,24 +2317,38 @@ function exportarLancamentos() {
   showToast('✅ Exportado com sucesso!', 'success');
 }
 
-function importarLancamentos(input) {
+async function importarLancamentos(input) {
   const file = input.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const dados = JSON.parse(e.target.result);
       const txs = dados.transactions || [];
       if(!txs.length) { showToast('Nenhum lançamento encontrado.', 'error'); return; }
+
       // Mescla — sobrescreve por ID
       const mapaLocal = {};
       state.transactions.forEach(t => mapaLocal[String(t.id)] = t);
       txs.forEach(t => mapaLocal[String(t.id)] = t);
-      state.transactions = Object.values(mapaLocal).sort((a,b) => new Date(a.timestamp||0) - new Date(b.timestamp||0));
+      state.transactions = Object.values(mapaLocal)
+        .sort((a,b) => new Date(a.timestamp||0) - new Date(b.timestamp||0));
       localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+
       renderDashboard();
       renderHistorico();
       showToast('✅ ' + txs.length + ' lançamentos importados!', 'success');
+
+      // Envia para o Sheets em background
+      if(state.scriptUrl) {
+        showToast('📤 Sincronizando com a planilha…', 'success');
+        let enviados = 0;
+        for(const tx of txs) {
+          await sendToSheets(tx);
+          enviados++;
+        }
+        showToast('✅ ' + enviados + ' lançamentos enviados para a planilha!', 'success');
+      }
     } catch(err) {
       showToast('❌ Arquivo inválido.', 'error');
     }
