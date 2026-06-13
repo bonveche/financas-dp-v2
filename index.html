@@ -2327,6 +2327,10 @@ async function importarLancamentos(input) {
       const txs = dados.transactions || [];
       if(!txs.length) { showToast('Nenhum lançamento encontrado.', 'error'); return; }
 
+      // Remove IDs importados da lista de excluídos (podem ter sido marcados antes)
+      txs.forEach(t => state.deletedIds.delete(String(t.id)));
+      localStorage.setItem('dpv2_deleted_ids', JSON.stringify([...state.deletedIds]));
+
       // Mescla — sobrescreve por ID
       const mapaLocal = {};
       state.transactions.forEach(t => mapaLocal[String(t.id)] = t);
