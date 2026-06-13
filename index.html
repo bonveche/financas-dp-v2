@@ -566,10 +566,72 @@ html { height: 100%; overflow: hidden; }
         <div class="pin-key" onclick="pinPress('9')">9</div>
         <div class="pin-key del" onclick="pinDel()">⌫</div>
         <div class="pin-key" onclick="pinPress('0')">0</div>
-        <div class="pin-key enter" onclick="doLogin()">→</div>
+        <div class="pin-key enter" onclick="pinDel()">⌫</div>
       </div>
       <div class="pin-error" id="pin-error">PIN incorreto. Tente novamente.</div>
+      <!-- Botões de modo -->
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button onclick="doLogin('rapido')" style="flex:1;padding:14px;border:2px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">🚀 Rápido</button>
+        <button onclick="doLogin('completo')" style="flex:1;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">📱 Completo</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     LANÇAMENTO RÁPIDO
+══════════════════════════════════ -->
+<div id="screen-rapido" class="screen">
+  <div style="background:var(--orange);padding:max(20px,env(safe-area-inset-top)) 20px 16px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="color:#fff;font-size:18px;font-weight:800">🚀 Lançamento Rápido</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:12px" id="rapido-user-label">Douglas</div>
+    </div>
+    <button onclick="logout()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer">✕</button>
+  </div>
+
+  <div style="padding:20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:calc(100dvh - 80px)">
+
+    <!-- Tipo -->
+    <div>
+      <div class="form-label">TIPO</div>
+      <div style="display:flex;gap:8px">
+        <button id="r-btn-despesa" onclick="setRapidoTipo('despesa')" style="flex:1;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer">💸 Despesa</button>
+        <button id="r-btn-receita" onclick="setRapidoTipo('receita')" style="flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer">💵 Receita</button>
+      </div>
+    </div>
+
+    <!-- Valor -->
+    <div>
+      <div class="form-label">VALOR (R$)</div>
+      <input type="number" inputmode="decimal" step="0.01" min="0"
+             id="r-valor" placeholder="0,00"
+             style="width:100%;font-size:32px;font-weight:800;text-align:center;border:2px solid var(--border);border-radius:var(--r);padding:16px;background:var(--surface);color:var(--text);box-sizing:border-box">
+    </div>
+
+    <!-- Forma -->
+    <div>
+      <div class="form-label">FORMA</div>
+      <div style="display:flex;gap:8px">
+        <button id="r-btn-debito" onclick="setRapidoForma('Débito')" style="flex:1;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">💳 Débito</button>
+        <button id="r-btn-credito" onclick="setRapidoForma('Crédito')" style="flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">💳 Crédito</button>
+        <button id="r-btn-pix" onclick="setRapidoForma('PIX')" style="flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer">⚡ PIX</button>
+      </div>
+    </div>
+
+    <!-- Para quem -->
+    <div>
+      <div class="form-label">PARA QUEM</div>
+      <div style="display:flex;gap:8px">
+        <button id="r-btn-douglas" onclick="setRapidoTitular('Douglas')" style="flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer">👨 Douglas</button>
+        <button id="r-btn-priscila" onclick="setRapidoTitular('Priscila')" style="flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer">👩 Priscila</button>
+        <button id="r-btn-casal" onclick="setRapidoTitular('Casal')" style="flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer">💑 Casal</button>
+      </div>
+    </div>
+
+    <button onclick="salvarRapido()" style="padding:16px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;margin-top:8px">Salvar lançamento</button>
+
+    <button onclick="entrarCompleto()" style="padding:12px;background:transparent;color:var(--muted);border:none;font-size:13px;cursor:pointer">Entrar no app completo →</button>
   </div>
 </div>
 
@@ -1263,7 +1325,6 @@ function pinPress(d) {
   if(state._pinBuffer.length >= 4) return;
   state._pinBuffer += d;
   atualizarDots();
-  if(state._pinBuffer.length === 4) setTimeout(doLogin, 100);
 }
 
 function pinDel() {
@@ -1277,18 +1338,104 @@ function atualizarDots() {
   }
 }
 
-function doLogin() {
+function doLogin(modo) {
   if(!state._selectedUser) return;
+  if(state._pinBuffer.length < 4) return;
   if(state._pinBuffer === state.pins[state._selectedUser]) {
     state.user = state._selectedUser;
     document.getElementById('pin-error').style.display = 'none';
-    showScreen('screen-app');
-    initApp();
+    if(modo === 'rapido') {
+      initRapido();
+    } else {
+      showScreen('screen-app');
+      initApp();
+    }
   } else {
     document.getElementById('pin-error').style.display = 'block';
     state._pinBuffer = '';
     atualizarDots();
   }
+}
+
+// Estado do lançamento rápido
+let _rTipo    = 'despesa';
+let _rForma   = 'Débito';
+let _rTitular = null;
+
+function initRapido() {
+  showScreen('screen-rapido');
+  _rTipo    = 'despesa';
+  _rForma   = 'Débito';
+  _rTitular = state.user;
+  document.getElementById('rapido-user-label').textContent = state.user;
+  document.getElementById('r-valor').value = '';
+  atualizarBotoesRapido();
+}
+
+function setRapidoTipo(tipo) {
+  _rTipo = tipo;
+  atualizarBotoesRapido();
+}
+
+function setRapidoForma(forma) {
+  _rForma = forma;
+  atualizarBotoesRapido();
+}
+
+function setRapidoTitular(titular) {
+  _rTitular = titular;
+  atualizarBotoesRapido();
+}
+
+function atualizarBotoesRapido() {
+  const on  = 'flex:1;padding:12px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer';
+  const off = 'flex:1;padding:12px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer';
+  const on2  = 'flex:1;padding:14px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer';
+  const off2 = 'flex:1;padding:14px;background:var(--surface);color:var(--text);border:2px solid var(--border);border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer';
+  document.getElementById('r-btn-despesa').style.cssText  = _rTipo === 'despesa'  ? on2 : off2;
+  document.getElementById('r-btn-receita').style.cssText  = _rTipo === 'receita'  ? on2 : off2;
+  document.getElementById('r-btn-debito').style.cssText   = _rForma === 'Débito'  ? on : off;
+  document.getElementById('r-btn-credito').style.cssText  = _rForma === 'Crédito' ? on : off;
+  document.getElementById('r-btn-pix').style.cssText      = _rForma === 'PIX'     ? on : off;
+  document.getElementById('r-btn-douglas').style.cssText  = _rTitular === 'Douglas'  ? on : off;
+  document.getElementById('r-btn-priscila').style.cssText = _rTitular === 'Priscila' ? on : off;
+  document.getElementById('r-btn-casal').style.cssText    = _rTitular === 'Casal'    ? on : off;
+}
+
+async function salvarRapido() {
+  const val = parseFloat(document.getElementById('r-valor').value);
+  if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
+
+  const hoje = new Date();
+  const data = hoje.toISOString().split('T')[0];
+  const mes  = MESES[hoje.getMonth()];
+  const tx = {
+    id:         Date.now(),
+    data,
+    mes,
+    tipo:       _rTipo,
+    titular:    _rTitular || state.user,
+    categoria:  'Lançamento Rápido',
+    valor:      val.toFixed(2),
+    forma:      _rTipo === 'receita' ? '—' : _rForma,
+    descricao:  'Lançamento Rápido',
+    obs:        '',
+    lancadoPor: state.user,
+    timestamp:  hoje.toISOString(),
+  };
+
+  state.transactions.push(tx);
+  localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+
+  showToast('✅ Lançamento salvo!', 'success');
+  document.getElementById('r-valor').value = '';
+
+  if(state.scriptUrl) sendToSheets(tx);
+}
+
+function entrarCompleto() {
+  showScreen('screen-app');
+  initApp();
 }
 
 function logout() {
