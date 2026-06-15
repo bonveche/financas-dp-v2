@@ -2800,14 +2800,17 @@ async function syncFromSheets() {
     txs.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
 
     // Só mescla se o Sheets retornou dados OU se o app local está vazio
-    // Evita apagar dados locais quando Sheets retorna vazio por erro
     if(txs.length > 0 || state.transactions.length === 0) {
       const sheetsIds = new Set(txs.map(t=>String(t.id)));
+      // Preserva sempre: itens locais não no Sheets E todos os faturaItems locais
       const localOnly = state.transactions.filter(t =>
-        !sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))
+        (!sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))) || t.faturaItem
       );
       const txsFiltrados = txs.filter(t => !state.deletedIds.has(String(t.id)));
-      state.transactions = [...txsFiltrados, ...localOnly].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+      // Mescla sem duplicar faturaItems
+      const faturaItemIds = new Set(localOnly.filter(t=>t.faturaItem).map(t=>String(t.id)));
+      const merged = [...txsFiltrados, ...localOnly.filter(t => !txsFiltrados.find(s=>String(s.id)===String(t.id)))];
+      state.transactions = merged.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
       localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
     }
 
