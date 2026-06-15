@@ -643,7 +643,7 @@ html { height: 100%; overflow: hidden; }
       </div>
     </div>
 
-    <button onclick="salvarRapido()" style="padding:16px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;margin-top:8px">Salvar lançamento</button>
+    <button id="btn-salvar-rapido" onclick="salvarRapido()" style="padding:16px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;margin-top:8px">Salvar lançamento</button>
 
     <button onclick="entrarCompleto()" style="padding:12px;background:transparent;color:var(--muted);border:none;font-size:13px;cursor:pointer">Entrar no app completo →</button>
   </div>
@@ -1500,8 +1500,15 @@ async function salvarRapido() {
   state.transactions.push(...toSave);
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  showToast('✅ Lançamento salvo!', 'success');
+  // Reset imediato do valor e feedback visual
+  const btnSalvar = document.getElementById('btn-salvar-rapido');
   document.getElementById('r-valor').value = '';
+  if(btnSalvar) { btnSalvar.textContent = '✅ Salvo!'; btnSalvar.disabled = true; }
+  showToast('✅ Lançamento salvo!', 'success');
+
+  setTimeout(() => {
+    if(btnSalvar) { btnSalvar.textContent = 'Salvar lançamento'; btnSalvar.disabled = false; }
+  }, 2000);
 
   if(state.scriptUrl) toSave.forEach(t => sendToSheets(t));
 }
