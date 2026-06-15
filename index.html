@@ -1450,13 +1450,14 @@ async function salvarRapido() {
   const val = parseFloat(document.getElementById('r-valor').value);
   if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
 
-  const hoje     = new Date();
-  const data     = hoje.toISOString().split('T')[0];
-  const mes      = MESES[hoje.getMonth()];
+  const hoje      = new Date();
+  const data      = hoje.toISOString().split('T')[0];
+  const mes       = MESES[hoje.getMonth()];
   const isCredito = _rTipo !== 'receita' && _rForma === 'Crédito';
-  const titular  = _rTitular || state.user;
-  // Para crédito, usa o nome do titular no campo forma
-  const formaFinal = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + titular) : _rForma;
+  const titular   = _rTitular || state.user;
+  // Para crédito, o cartão é sempre de Douglas ou Priscila (não Casal)
+  const donoCartao = (titular === 'Casal') ? state.user : titular;
+  const formaFinal = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + donoCartao) : _rForma;
 
   const tx = {
     id:         Date.now(),
@@ -1477,7 +1478,7 @@ async function salvarRapido() {
 
   // Se crédito, cria faturaItem no mês correto
   if(isCredito) {
-    const mesFaturaDate = calcMesFatura(titular, hoje);
+    const mesFaturaDate = calcMesFatura(donoCartao, hoje);
     const mesFatura = MESES[mesFaturaDate.getMonth()];
     const faturaItem = {
       id:         Date.now() + 1,
@@ -1488,10 +1489,10 @@ async function salvarRapido() {
       categoria:  'Lançamento Rápido',
       valor:      val.toFixed(2),
       forma:      formaFinal,
-      descricao:  'Lançamento Rápido — parcela 1/1',
+      descricao:  'Lançamento Rápido',
       obs:        '',
       lancadoPor: state.user,
-      timestamp:  hoje.toISOString(),
+      timestamp:  new Date(hoje.getTime() + 1).toISOString(),
       parcelaRef: tx.id,
       faturaItem: true,
     };
