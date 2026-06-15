@@ -1450,37 +1450,60 @@ async function salvarRapido() {
   const val = parseFloat(document.getElementById('r-valor').value);
   if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
 
-  // Preenche state como se fosse o lançamento completo
-  state.tipo  = _rTipo;
-  state.owner = _rTitular || state.user;
+  const hoje          = new Date();
+  const data          = hoje.toISOString().split('T')[0];
+  const titular       = _rTitular || state.user;
+  const isCredito     = _rTipo !== 'receita' && _rForma === 'Crédito';
+  const donoCartao    = state.user; // cartão sempre do usuário logado
+  const forma         = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + donoCartao) : _rForma;
+  const mesLancamento = MESES[hoje.getMonth()];
+  const parcelas      = 1;
 
-  // Preenche os campos do formulário completo
-  document.getElementById('f-data').value      = new Date().toISOString().split('T')[0];
-  document.getElementById('f-valor').value     = val;
-  document.getElementById('f-descricao').value = 'Lançamento Rápido';
-  document.getElementById('f-obs').value       = '';
+  const tx = {
+    id:         Date.now(),
+    data,
+    mes:        mesLancamento,
+    tipo:       _rTipo,
+    titular,
+    categoria:  'Outros',
+    valor:      val.toFixed(2),
+    forma,
+    descricao:  '🚀 Lançamento rápido',
+    obs:        '',
+    lancadoPor: state.user,
+    timestamp:  hoje.toISOString(),
+  };
 
-  // Categoria: Outros
-  popularCategorias(_rTipo === 'receita' ? 'receita' : _rTipo === 'fixa' ? 'fixa' : 'despesa');
-  const catSelect = document.getElementById('f-categoria');
-  const outrosOpt = Array.from(catSelect.options).find(o => o.text === 'Outros');
-  if(outrosOpt) catSelect.value = outrosOpt.value;
+  const toSave = [tx];
 
-  // Forma de pagamento
-  const formaMap = { 'Débito': 'Débito', 'Crédito': 'Crédito ' + state.user, 'PIX': 'PIX' };
-  const formaVal = _rTipo === 'receita' ? '—' : (formaMap[_rForma] || _rForma);
-  const formaSelect = document.getElementById('f-forma');
-  if(formaSelect) {
-    const opt = Array.from(formaSelect.options).find(o => o.value === formaVal || o.text === formaVal);
-    if(opt) formaSelect.value = opt.value;
+  if(isCredito) {
+    const mesFaturaDate = calcMesFatura(donoCartao, hoje);
+    const mesFatura     = MESES[mesFaturaDate.getMonth()];
+    toSave.push({
+      id:         Date.now() + 1,
+      data,
+      mes:        mesFatura,
+      tipo:       'despesa',
+      titular,
+      categoria:  'Outros',
+      valor:      val.toFixed(2),
+      forma,
+      descricao:  '🚀 Lançamento rápido — parcela 1/1',
+      obs:        '',
+      lancadoPor: state.user,
+      timestamp:  new Date(hoje.getTime() + 1).toISOString(),
+      parcelaRef: tx.id,
+      faturaItem: true,
+    });
   }
 
-  // Chama o salvarLancamento original sem redirecionar
-  await salvarLancamento(true);
+  state.transactions.push(...toSave);
+  localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  // Volta para a tela rápida após salvar
+  showToast('✅ Lançamento salvo!', 'success');
   document.getElementById('r-valor').value = '';
-  showScreen('screen-rapido');
+
+  if(state.scriptUrl) toSave.forEach(t => sendToSheets(t));
 }
 
 function entrarCompleto() {
