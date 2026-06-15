@@ -1510,10 +1510,10 @@ async function salvarRapido() {
     if(btnSalvar) { btnSalvar.textContent = 'Salvar lançamento'; btnSalvar.disabled = false; }
   }, 2000);
 
-  // Envia para Sheets e só depois permite sync
+  // Envia para Sheets em background (só lançamentos principais, não faturaItems)
   if(state.scriptUrl) {
     state._blockSync = true;
-    await Promise.all(toSave.map(t => sendToSheets(t)));
+    await sendToSheets(tx);
     state._blockSync = false;
   }
 }
@@ -2115,15 +2115,11 @@ async function salvarLancamento(silentMode = false) {
 
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
 
-  // Envia para Sheets — principal + parcelas se houver
+  // Envia para Sheets — só o lançamento principal (faturaItems são locais)
   if(state.scriptUrl) {
     const btn = document.getElementById('btn-salvar');
     btn.textContent = 'Enviando…'; btn.disabled = true;
     await sendToSheets(tx);
-    // Envia faturaItems (parcelas) para o Sheets também, para poder excluir depois
-    if(isCredito && parcTxs && parcTxs.length) {
-      for(const p of parcTxs) await sendToSheets(p);
-    }
     btn.textContent = 'Salvar lançamento'; btn.disabled = false;
   }
 
@@ -2801,16 +2797,18 @@ async function syncFromSheets() {
 
     // Só mescla se o Sheets retornou dados OU se o app local está vazio
     if(txs.length > 0 || state.transactions.length === 0) {
+      // faturaItems são SEMPRE locais — nunca vêm do Sheets, nunca devem ser apagados pela sync
+      const faturaItemsLocais = state.transactions.filter(t => t.faturaItem);
+
       const sheetsIds = new Set(txs.map(t=>String(t.id)));
-      // Preserva sempre: itens locais não no Sheets E todos os faturaItems locais
       const localOnly = state.transactions.filter(t =>
-        (!sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))) || t.faturaItem
+        !t.faturaItem && !sheetsIds.has(String(t.id)) && !state.deletedIds.has(String(t.id))
       );
       const txsFiltrados = txs.filter(t => !state.deletedIds.has(String(t.id)));
-      // Mescla sem duplicar faturaItems
-      const faturaItemIds = new Set(localOnly.filter(t=>t.faturaItem).map(t=>String(t.id)));
-      const merged = [...txsFiltrados, ...localOnly.filter(t => !txsFiltrados.find(s=>String(s.id)===String(t.id)))];
-      state.transactions = merged.sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+
+      // Monta o resultado: dados do Sheets + locais não no Sheets + todos os faturaItems
+      state.transactions = [...txsFiltrados, ...localOnly, ...faturaItemsLocais]
+        .sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
       localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
     }
 
