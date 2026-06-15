@@ -1450,61 +1450,62 @@ async function salvarRapido() {
   const val = parseFloat(document.getElementById('r-valor').value);
   if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
 
-  const hoje      = new Date();
-  const data      = hoje.toISOString().split('T')[0];
-  const mes       = MESES[hoje.getMonth()];
-  const isCredito = _rTipo !== 'receita' && _rForma === 'Crédito';
-  const titular   = _rTitular || state.user;
-  // Para crédito, o cartão é sempre de Douglas ou Priscila (não Casal)
-  const donoCartao = (titular === 'Casal') ? state.user : titular;
-  const formaFinal = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + donoCartao) : _rForma;
+  const hoje       = new Date();
+  const data       = hoje.toISOString().split('T')[0];
+  const titular    = _rTitular || state.user;
+  const isCredito  = _rTipo !== 'receita' && _rForma === 'Crédito';
+  // Cartão sempre do usuário logado (não "Casal")
+  const donoCartao = state.user;
+  const forma      = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + donoCartao) : _rForma;
+  const mesLancamento = MESES[hoje.getMonth()];
 
   const tx = {
     id:         Date.now(),
     data,
-    mes,
+    mes:        mesLancamento,
     tipo:       _rTipo,
     titular,
-    categoria:  'Lançamento Rápido',
+    categoria:  'Outros',
     valor:      val.toFixed(2),
-    forma:      formaFinal,
+    forma,
     descricao:  'Lançamento Rápido',
     obs:        '',
     lancadoPor: state.user,
     timestamp:  hoje.toISOString(),
   };
 
-  state.transactions.push(tx);
-
-  // Se crédito, cria faturaItem no mês correto
+  const parcTxs = [];
   if(isCredito) {
     const mesFaturaDate = calcMesFatura(donoCartao, hoje);
     const mesFatura = MESES[mesFaturaDate.getMonth()];
-    const faturaItem = {
+    parcTxs.push({
       id:         Date.now() + 1,
       data,
       mes:        mesFatura,
       tipo:       'despesa',
       titular,
-      categoria:  'Lançamento Rápido',
+      categoria:  'Outros',
       valor:      val.toFixed(2),
-      forma:      formaFinal,
+      forma,
       descricao:  'Lançamento Rápido',
       obs:        '',
       lancadoPor: state.user,
       timestamp:  new Date(hoje.getTime() + 1).toISOString(),
       parcelaRef: tx.id,
       faturaItem: true,
-    };
-    state.transactions.push(faturaItem);
-    if(state.scriptUrl) sendToSheets(faturaItem);
+    });
   }
 
+  state.transactions.push(tx, ...parcTxs);
   localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+
   showToast('✅ Lançamento salvo!', 'success');
   document.getElementById('r-valor').value = '';
 
-  if(state.scriptUrl) sendToSheets(tx);
+  if(state.scriptUrl) {
+    sendToSheets(tx);
+    parcTxs.forEach(p => sendToSheets(p));
+  }
 }
 
 function entrarCompleto() {
