@@ -1510,7 +1510,12 @@ async function salvarRapido() {
     if(btnSalvar) { btnSalvar.textContent = 'Salvar lançamento'; btnSalvar.disabled = false; }
   }, 2000);
 
-  if(state.scriptUrl) toSave.forEach(t => sendToSheets(t));
+  // Envia para Sheets e só depois permite sync
+  if(state.scriptUrl) {
+    state._blockSync = true;
+    await Promise.all(toSave.map(t => sendToSheets(t)));
+    state._blockSync = false;
+  }
 }
 
 function entrarCompleto() {
@@ -2134,7 +2139,6 @@ async function salvarLancamento(silentMode = false) {
   state.selMonth = mesLancamento;
   buildChips('dash-month-chips', mesLancamento, m=>{state.selMonth=m;renderDashboard();});
   if(!silentMode) switchTab('dashboard', document.querySelector('.tab-btn'));
-  setTimeout(syncFromSheets, 5000);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2766,6 +2770,7 @@ async function salvarFechamentoSheets(mes, dados) {
 
 async function syncFromSheets() {
   if(!state.scriptUrl) return;
+  if(state._blockSync) return; // aguarda envio terminar
   showSync('🔄 Sincronizando…');
   try {
     const resp = await fetch(state.scriptUrl+'?action=readAll&t='+Date.now());
