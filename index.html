@@ -1450,62 +1450,37 @@ async function salvarRapido() {
   const val = parseFloat(document.getElementById('r-valor').value);
   if(!val || val <= 0) { showToast('Digite o valor!', 'error'); return; }
 
-  const hoje       = new Date();
-  const data       = hoje.toISOString().split('T')[0];
-  const titular    = _rTitular || state.user;
-  const isCredito  = _rTipo !== 'receita' && _rForma === 'Crédito';
-  // Cartão sempre do usuário logado (não "Casal")
-  const donoCartao = state.user;
-  const forma      = _rTipo === 'receita' ? '—' : isCredito ? ('Crédito ' + donoCartao) : _rForma;
-  const mesLancamento = MESES[hoje.getMonth()];
+  // Preenche state como se fosse o lançamento completo
+  state.tipo  = _rTipo;
+  state.owner = _rTitular || state.user;
 
-  const tx = {
-    id:         Date.now(),
-    data,
-    mes:        mesLancamento,
-    tipo:       _rTipo,
-    titular,
-    categoria:  'Outros',
-    valor:      val.toFixed(2),
-    forma,
-    descricao:  'Lançamento Rápido',
-    obs:        '',
-    lancadoPor: state.user,
-    timestamp:  hoje.toISOString(),
-  };
+  // Preenche os campos do formulário completo
+  document.getElementById('f-data').value      = new Date().toISOString().split('T')[0];
+  document.getElementById('f-valor').value     = val;
+  document.getElementById('f-descricao').value = 'Lançamento Rápido';
+  document.getElementById('f-obs').value       = '';
 
-  const parcTxs = [];
-  if(isCredito) {
-    const mesFaturaDate = calcMesFatura(donoCartao, hoje);
-    const mesFatura = MESES[mesFaturaDate.getMonth()];
-    parcTxs.push({
-      id:         Date.now() + 1,
-      data,
-      mes:        mesFatura,
-      tipo:       'despesa',
-      titular,
-      categoria:  'Outros',
-      valor:      val.toFixed(2),
-      forma,
-      descricao:  'Lançamento Rápido',
-      obs:        '',
-      lancadoPor: state.user,
-      timestamp:  new Date(hoje.getTime() + 1).toISOString(),
-      parcelaRef: tx.id,
-      faturaItem: true,
-    });
+  // Categoria: Outros
+  popularCategorias(_rTipo === 'receita' ? 'receita' : _rTipo === 'fixa' ? 'fixa' : 'despesa');
+  const catSelect = document.getElementById('f-categoria');
+  const outrosOpt = Array.from(catSelect.options).find(o => o.text === 'Outros');
+  if(outrosOpt) catSelect.value = outrosOpt.value;
+
+  // Forma de pagamento
+  const formaMap = { 'Débito': 'Débito', 'Crédito': 'Crédito ' + state.user, 'PIX': 'PIX' };
+  const formaVal = _rTipo === 'receita' ? '—' : (formaMap[_rForma] || _rForma);
+  const formaSelect = document.getElementById('f-forma');
+  if(formaSelect) {
+    const opt = Array.from(formaSelect.options).find(o => o.value === formaVal || o.text === formaVal);
+    if(opt) formaSelect.value = opt.value;
   }
 
-  state.transactions.push(tx, ...parcTxs);
-  localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
+  // Chama o salvarLancamento original sem redirecionar
+  await salvarLancamento(true);
 
-  showToast('✅ Lançamento salvo!', 'success');
+  // Volta para a tela rápida após salvar
   document.getElementById('r-valor').value = '';
-
-  if(state.scriptUrl) {
-    sendToSheets(tx);
-    parcTxs.forEach(p => sendToSheets(p));
-  }
+  showScreen('screen-rapido');
 }
 
 function entrarCompleto() {
@@ -2040,7 +2015,7 @@ function calcMesFatura(titular, dataCompra) {
   return new Date(anoCompra, mesCompra, 1);
 }
 
-async function salvarLancamento() {
+async function salvarLancamento(silentMode = false) {
   const data  = document.getElementById('f-data').value;
   const val   = parseFloat(document.getElementById('f-valor').value);
   const desc  = document.getElementById('f-descricao').value;
@@ -2128,7 +2103,7 @@ async function salvarLancamento() {
   showToast('✅ Lançamento salvo!', 'success');
   state.selMonth = mesLancamento;
   buildChips('dash-month-chips', mesLancamento, m=>{state.selMonth=m;renderDashboard();});
-  switchTab('dashboard', document.querySelector('.tab-btn'));
+  if(!silentMode) switchTab('dashboard', document.querySelector('.tab-btn'));
   setTimeout(syncFromSheets, 5000);
 }
 
