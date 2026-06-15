@@ -2798,10 +2798,6 @@ async function syncFromSheets() {
     // Só mescla se o Sheets retornou dados OU se o app local está vazio
     if(txs.length > 0 || state.transactions.length === 0) {
       const faturaItemsLocais = state.transactions.filter(t => t.faturaItem);
-      const faturaItemsStorage = JSON.parse(localStorage.getItem('dpv2_transactions')||'[]').filter(t=>t.faturaItem);
-
-      // DEBUG TEMPORÁRIO
-      showToast(`Mem:${faturaItemsLocais.length} Storage:${faturaItemsStorage.length} Sheets:${txs.length}`, 'success');
 
       const sheetsIds = new Set(txs.map(t=>String(t.id)));
       const localOnly = state.transactions.filter(t =>
@@ -2811,9 +2807,6 @@ async function syncFromSheets() {
 
       state.transactions = [...txsFiltrados, ...localOnly, ...faturaItemsLocais]
         .sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
-
-      setTimeout(() => showToast(`Após merge: ${state.transactions.filter(t=>t.faturaItem).length} faturaItems`, 'success'), 2000);
-
       localStorage.setItem('dpv2_transactions', JSON.stringify(state.transactions));
     }
 
